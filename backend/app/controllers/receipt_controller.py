@@ -140,18 +140,19 @@ def update_receipt(
     if not receipt:
         raise HTTPException(status_code=404, detail="Receipt not found")
 
-    if data.supplier_name is not None:
+    provided = data.model_fields_set
+    if "supplier_name" in provided:
         receipt.supplier_name = data.supplier_name
-    if data.receipt_date is not None:
+    if "receipt_date" in provided:
         receipt.receipt_date = data.receipt_date
-    if data.total_amount is not None:
+    if "total_amount" in provided:
         receipt.total_amount = data.total_amount
-    if data.category_id is not None:
+    if "category_id" in provided:
         receipt.category_id = data.category_id
-    if data.status is not None:
+    if "status" in provided:
         receipt.status = data.status
 
-    if data.items is not None:
+    if "items" in provided and data.items is not None:
         db.query(ReceiptItem).filter(ReceiptItem.receipt_id == receipt.id).delete()
         for item_data in data.items:
             item = ReceiptItem(
