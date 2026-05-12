@@ -1,0 +1,248 @@
+"use client"
+
+import { useState, useEffect, useMemo } from "react"
+import {
+  Search,
+  X,
+  LayoutGrid,
+  List,
+  Eye,
+  Pencil,
+  Trash2,
+  ChevronLeft,
+  ChevronRight,
+  Calendar,
+  Receipt,
+  Loader2,
+  Download,
+} from "lucide-react"
+import { cn } from "@/lib/utils"
+import { apiGetReceipts, apiDeleteReceipt, apiExportCSV } from "@/lib/api"
+
+type ViewMode = "table" | "grid"
+
+interface ReceiptItem {
+  id: number
+  receipt_date: string | null
+  supplier_name: string | null
+  category_name: string | null
+  total_amount: number
+  status: string
+  created_at: string
+}
+
+const PAGE_SIZE = 8
+
+const formatVND = (amount: number) => amount.toLocaleString("vi-VN") + " đ"
+
+const statusStyles: Record<string, string> = {
+  "Đã duyệt": "bg-emerald-50 text-emerald-700",
+  "Chờ duyệt": "bg-amber-50 text-amber-700",
+  "Từ chối": "bg-red-50 text-red-600",
+}
+
+function StatusBadge({ status }: { status: string }) {
+  return (
+    <span className={cn("inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium", statusStyles[status] || "bg-gray-50 text-gray-700")}>
+      {status}
+    </span>
+  )
+}
+
+function ReceiptCard({ item, onView, onDelete }: { item: ReceiptItem; onView: (id: number) => void; onDelete: (id: number) => void }) {
+  return (
+    <div className="group rounded-xl border border-border bg-card shadow-sm hover:shadow-md transition-shadow duration-200 overflow-hidden flex flex-col">
+      <div className="h-32 bg-gradient-to-br from-indigo-50 to-blue-100 flex items-center justify-center relative">
+        <Receipt className="h-12 w-12 text-indigo-300" />
+        <div className="absolute top-2 right-2"><StatusBadge status={item.status} /></div>
+      </div>
+      <div className="flex flex-col gap-2 p-4 flex-1">
+        <p className="font-semibold text-foreground text-sm leading-snug line-clamp-1">{item.supplier_name || "—"}</p>
+        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <Calendar className="h-3.5 w-3.5" />
+          {item.receipt_date || new Date(item.created_at).toLocaleDateString("vi-VN")}
+        </div>
+        {item.category_name && (
+          <span className="inline-flex w-fit items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-indigo-50 text-indigo-700 ring-1 ring-indigo-200">
+            {item.category_name}
+          </span>
+        )}
+        <p className="mt-auto pt-2 text-base font-bold text-indigo-600">{formatVND(item.total_amount)}</p>
+      </div>
+      <div className="flex border-t border-border divide-x divide-border">
+        <button onClick={() => onView(item.id)} className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs text-muted-foreground hover:text-indigo-600 hover:bg-indigo-50 transition-colors">
+          <Eye className="h-3.5 w-3.5" /> Xem
+        </button>
+        <button onClick={() => onDelete(item.id)} className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs text-muted-foreground hover:text-red-600 hover:bg-red-50 transition-colors">
+          <Trash2 className="h-3.5 w-3.5" /> Xóa
+        </button>
+      </div>
+    </div>
+  )
+}
+
+export function ReceiptHistory({ onViewReceipt }: { onViewReceipt: (id: number) => void }) {
+  const [receipts, setReceipts] = useState<ReceiptItem[]>([])
+  const [loading, setLoading] = useState(true)
+  const [search, setSearch] = useState("")
+  const [viewMode, setViewMode] = useState<ViewMode>("table")
+  const [page, setPage] = useState(1)
+
+  const fetchReceipts = async (searchQuery?: string) => {
+    setLoading(true)
+    try {
+      const data = await apiGetReceipts(searchQuery ? { search: searchQuery } : undefined)
+      setReceipts(data)
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchReceipts()
+  }, [])
+
+  const handleSearch = () => {
+    setPage(1)
+    fetchReceipts(search || undefined)
+  }
+
+  const handleDelete = async (id: number) => {
+    if (!confirm("Bạn có chắc muốn xóa hóa đơn này?")) return
+    try {
+      await apiDeleteReceipt(id)
+      setReceipts((prev) => prev.filter((r) => r.id !== id))
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
+  const totalPages = Math.max(1, Math.ceil(receipts.length / PAGE_SIZE))
+  const pagedReceipts = receipts.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-24">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Toolbar */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+              placeholder="Tìm theo nhà cung cấp..."
+              className="h-9 w-64 rounded-lg border border-input bg-background pl-9 pr-8 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            />
+            {search && (
+              <button onClick={() => { setSearch(""); fetchReceipts() }} className="absolute right-2 top-1/2 -translate-y-1/2">
+                <X className="h-4 w-4 text-muted-foreground" />
+              </button>
+            )}
+          </div>
+          <button onClick={handleSearch} className="h-9 px-3 rounded-lg bg-primary text-primary-foreground text-sm hover:bg-primary/90">
+            Tìm
+          </button>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button onClick={() => apiExportCSV()} className="flex items-center gap-1.5 h-9 px-3 rounded-lg border border-border bg-background text-sm hover:bg-muted">
+            <Download className="h-4 w-4" />
+            Export CSV
+          </button>
+          <div className="flex rounded-lg border border-border overflow-hidden">
+            <button onClick={() => setViewMode("table")} className={cn("p-2", viewMode === "table" ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted")}>
+              <List className="h-4 w-4" />
+            </button>
+            <button onClick={() => setViewMode("grid")} className={cn("p-2", viewMode === "grid" ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted")}>
+              <LayoutGrid className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {receipts.length === 0 ? (
+        <div className="text-center py-16 text-muted-foreground">
+          <Receipt className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50" />
+          <p className="text-lg font-medium">Chưa có hóa đơn nào</p>
+          <p className="text-sm mt-1">Hãy upload hóa đơn đầu tiên từ trang Upload</p>
+        </div>
+      ) : viewMode === "grid" ? (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {pagedReceipts.map((item) => (
+            <ReceiptCard key={item.id} item={item} onView={onViewReceipt} onDelete={handleDelete} />
+          ))}
+        </div>
+      ) : (
+        <div className="overflow-x-auto rounded-xl border border-border bg-card">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b bg-muted/30 text-left text-sm text-muted-foreground">
+                <th className="px-4 py-3 font-medium">Ngày</th>
+                <th className="px-4 py-3 font-medium">Nhà cung cấp</th>
+                <th className="px-4 py-3 font-medium">Danh mục</th>
+                <th className="px-4 py-3 font-medium text-right">Số tiền</th>
+                <th className="px-4 py-3 font-medium">Trạng thái</th>
+                <th className="px-4 py-3 font-medium text-right">Thao tác</th>
+              </tr>
+            </thead>
+            <tbody>
+              {pagedReceipts.map((item) => (
+                <tr key={item.id} className="border-b last:border-0 hover:bg-muted/20">
+                  <td className="px-4 py-3 text-sm">{item.receipt_date || new Date(item.created_at).toLocaleDateString("vi-VN")}</td>
+                  <td className="px-4 py-3 text-sm font-medium">{item.supplier_name || "—"}</td>
+                  <td className="px-4 py-3 text-sm">{item.category_name || "—"}</td>
+                  <td className="px-4 py-3 text-sm text-right font-semibold text-indigo-600">{formatVND(item.total_amount)}</td>
+                  <td className="px-4 py-3"><StatusBadge status={item.status} /></td>
+                  <td className="px-4 py-3 text-right">
+                    <div className="flex items-center justify-end gap-1">
+                      <button onClick={() => onViewReceipt(item.id)} className="p-1.5 rounded hover:bg-indigo-50 text-muted-foreground hover:text-indigo-600">
+                        <Eye className="h-4 w-4" />
+                      </button>
+                      <button onClick={() => handleDelete(item.id)} className="p-1.5 rounded hover:bg-red-50 text-muted-foreground hover:text-red-600">
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between pt-2">
+          <p className="text-sm text-muted-foreground">
+            Hiển thị {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, receipts.length)} / {receipts.length} hóa đơn
+          </p>
+          <div className="flex items-center gap-1">
+            <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} className="p-2 rounded-lg border border-border disabled:opacity-30 hover:bg-muted">
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+              <button key={p} onClick={() => setPage(p)} className={cn("h-8 w-8 rounded-lg text-sm", p === page ? "bg-primary text-primary-foreground" : "border border-border hover:bg-muted")}>
+                {p}
+              </button>
+            ))}
+            <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page === totalPages} className="p-2 rounded-lg border border-border disabled:opacity-30 hover:bg-muted">
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
