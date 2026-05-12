@@ -18,7 +18,7 @@ async function request(path: string, options: RequestInit = {}): Promise<Respons
   }
 
   const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
-  if (res.status === 401) {
+  if (res.status === 401 && !path.startsWith("/api/auth/")) {
     if (typeof window !== "undefined") {
       localStorage.removeItem("token");
       localStorage.removeItem("user");
