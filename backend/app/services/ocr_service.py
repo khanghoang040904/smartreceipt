@@ -18,10 +18,78 @@ def extract_text(image_path: str) -> str:
     return "\n".join(results)
 
 
-def parse_receipt(raw_text: str) -> dict:
-    lines = raw_text.strip().split("\n")
+def _normalize_ocr_text(raw_text: str) -> str:
+    """Clean up common OCR artifacts: spaces inside numbers, stray punctuation."""
+    text = raw_text
+    # Fix spaces inside numbers like "216 , 000" -> "216,000" or "8 , 760 , 000" -> "8,760,000"
+    text = re.sub(r"(\d)\s*,\s*(\d)", r"\1,\2", text)
+    # Fix spaces inside numbers like "575 225" -> "575225" (no separator)
+    text = re.sub(r"(\d)\s+(\d{3})(?=\s|d|đ|$)", r"\1\2", text)
+    return text
 
-    supplier_name = lines[0].strip() if lines else None
+
+def _extract_supplier(lines: list[str]) -> str | None:
+    """Extract supplier name by combining initial short lines that form a business name.
+
+    EasyOCR often splits a multi-word business name across several lines
+    (e.g., "DIEN" / "MAY" / "XANH"). This function merges them until it hits
+    a line that looks like an address, phone, date, or separator.
+    """
+    stop_keywords = [
+        "ngay", "ngày", "date", "hoa don", "hóa đơn", "phieu", "phiếu",
+        "dt:", "đt:", "tel:", "hotline", "mst:", "sdt:", "cn:", "===", "---",
+        "ban:", "bàn:", "thu ngan", "nv:", "so hd", "số hd", "ma hd", "mã hd",
+    ]
+    address_pattern = re.compile(
+        r"\d+\s+\w+.*(?:q\.\d|quan|quận|tp\b|tphcm|ha noi|hà nội|p\.\d|phuong|phường)",
+        re.IGNORECASE,
+    )
+    # Line starting with a street number (e.g., "168 Nguyen...", "42 Hai Ba...")
+    street_number_pattern = re.compile(r"^\d{1,4}\s+[A-Z]", re.IGNORECASE)
+
+    parts: list[str] = []
+    for line in lines:
+        stripped = line.strip()
+        if not stripped:
+            continue
+        lower = stripped.lower()
+        # Skip very short noise fragments (1-2 chars like "kk", "**")
+        if len(stripped) <= 2 and not stripped.isalpha():
+            continue
+        if len(stripped) <= 2 and not parts:
+            continue
+        # Stop at addresses, dates, separators
+        if any(kw in lower for kw in stop_keywords):
+            break
+        if address_pattern.search(stripped):
+            break
+        # Stop at lines starting with a street number (address line)
+        if street_number_pattern.match(stripped):
+            break
+        # Stop if line looks like a phone number
+        if re.match(r"^[\d\s\(\)\-\+]{7,}$", stripped):
+            break
+        # Stop at lines with only punctuation/stars (noise like "4**", "***")
+        if re.match(r"^[\*\#\@\!\~]+$", stripped):
+            continue
+        parts.append(stripped)
+        # A good supplier name is usually 1-3 fragments
+        if len(parts) >= 4:
+            break
+    name = " ".join(parts).strip() if parts else (lines[0].strip() if lines else None)
+    if name:
+        # Normalize multiple spaces to single space
+        name = re.sub(r"\s+", " ", name)
+        # Strip trailing noise: punctuation-only fragments (e.g., "4**", "***")
+        name = re.sub(r"\s+[\*\#\@\!\~\d]{1,4}\*+$", "", name)
+    return name
+
+
+def parse_receipt(raw_text: str) -> dict:
+    normalized = _normalize_ocr_text(raw_text)
+    lines = normalized.strip().split("\n")
+
+    supplier_name = _extract_supplier(lines)
 
     receipt_date = None
     date_patterns = [
@@ -29,24 +97,37 @@ def parse_receipt(raw_text: str) -> dict:
         r"Ngày[:\s]*(\d{1,2}[/\-\.]\d{1,2}[/\-\.]\d{2,4})",
     ]
     for pattern in date_patterns:
-        match = re.search(pattern, raw_text, re.IGNORECASE)
+        match = re.search(pattern, normalized, re.IGNORECASE)
         if match:
             receipt_date = match.group(1)
             break
 
+    # Join all lines into a single string for multi-line pattern matching
+    joined = " ".join(line.strip() for line in lines if line.strip())
+
     total_amount = 0.0
     total_patterns = [
-        r"(?:THÀNH TIỀN|Tổng cộng|Total|TỔNG|Thanh toán)[:\s]*([0-9.,]+)\s*(?:đ|VND|vnđ)?",
+        # Vietnamese with diacritics
+        r"(?:THÀNH TIỀN|Tổng cộng|TỔNG CỘNG|Thanh toán|THANH TOÁN|Tổng tiền)[:\s]*([0-9.,]+)\s*(?:đ|d|VND|vnđ)?",
+        # Vietnamese without diacritics (OCR often strips accents)
+        r"(?:THANH\s*TOAN|TONG\s*CONG|TONG\s*THANH\s*TOAN|TONG\s*TIEN)[:\s]*([0-9.,]+)\s*(?:đ|d|VND|vnđ)?",
+        # "Tong tien hang:" pattern (common in electronics stores)
+        r"(?:Tong\s*tien\s*hang|TONG\s*TIEN\s*HANG)[:\s]*([0-9.,]+)",
+        # Amount followed by currency on same line
         r"([0-9.,]+)\s*(?:đ|VND|vnđ)\s*$",
     ]
     found_totals = []
     for pattern in total_patterns:
-        for match in re.finditer(pattern, raw_text, re.IGNORECASE | re.MULTILINE):
-            amount_str = match.group(1).replace(".", "").replace(",", "")
-            try:
-                found_totals.append(float(amount_str))
-            except ValueError:
-                pass
+        # Search in both the original per-line text and the joined text
+        for text_to_search in [normalized, joined]:
+            for match in re.finditer(pattern, text_to_search, re.IGNORECASE | re.MULTILINE):
+                amount_str = match.group(1).replace(".", "").replace(",", "")
+                try:
+                    val = float(amount_str)
+                    if val > 0:
+                        found_totals.append(val)
+                except ValueError:
+                    pass
     if found_totals:
         total_amount = max(found_totals)
 
@@ -58,12 +139,15 @@ def parse_receipt(raw_text: str) -> dict:
         r"^(.+?)\s+(\d+)\s+([0-9.,]+)\s+([0-9.,]+)\s*$"
     )
 
+    skip_keywords = [
+        "tổng", "tong", "total", "thành tiền", "thanh tien", "thanh toan",
+        "vat", "cảm ơn", "cam on", "tel", "đt:", "dt:", "địa chỉ",
+        "hóa đơn số", "hoa don", "---", "===", "hotline", "giam gia",
+        "phuong thuc", "khach dua", "tien thua", "phi dich vu",
+    ]
     for line in lines:
         line = line.strip()
-        if not line or any(
-            kw in line.lower()
-            for kw in ["tổng", "total", "thành tiền", "vat", "cảm ơn", "tel", "đt:", "địa chỉ", "hóa đơn số", "---", "==="]
-        ):
+        if not line or any(kw in line.lower() for kw in skip_keywords):
             continue
 
         m = price_pattern.match(line)
