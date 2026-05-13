@@ -145,11 +145,11 @@ def update_receipt(
         receipt.supplier_name = data.supplier_name
     if "receipt_date" in provided:
         receipt.receipt_date = data.receipt_date
-    if "total_amount" in provided:
+    if "total_amount" in provided and data.total_amount is not None:
         receipt.total_amount = data.total_amount
     if "category_id" in provided:
         receipt.category_id = data.category_id
-    if "status" in provided:
+    if "status" in provided and data.status is not None:
         receipt.status = data.status
 
     if "items" in provided and data.items is not None:
