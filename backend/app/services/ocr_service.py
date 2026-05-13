@@ -119,8 +119,9 @@ def _extract_supplier(lines: list[str]) -> str | None:
             break
     name = " ".join(parts).strip() if parts else (lines[0].strip() if lines else None)
     if name:
-        # Normalize multiple spaces to single space
         name = re.sub(r"\s+", " ", name)
+        # Strip leading OCR noise (e.g., "kk" before "THE COFFEE HOUSE")
+        name = re.sub(r"^[a-z]{1,2}\s+(?=[A-Z]{2,})", "", name)
         # Strip trailing noise: punctuation-only fragments (e.g., "4**", "***")
         name = re.sub(r"\s+[\*\#\@\!\~\d]{1,4}\*+$", "", name)
     return name
@@ -151,25 +152,26 @@ def _make_item(name: str, qty: int, unit_price: float, amount: float) -> dict:
 
 def _parse_items(lines: list[str]) -> list[dict]:
     """Parse product lines from OCR text supporting multiple Vietnamese receipt formats."""
-    # "Nx name price" (coffee shop: "1x Ca phe sua da  45,000")
     qty_prefix_re = re.compile(
         r"^(\d+)\s*x\s+(.+?)\s+([0-9][0-9.,]*)\s*$", re.IGNORECASE,
     )
-    # "name xN price" (restaurant: "Tom su hap bia  x1  280,000")
     qty_suffix_re = re.compile(
         r"^(.+?)\s+x(\d+)\s+([0-9][0-9.,]*)\s*$", re.IGNORECASE,
     )
-    # "STT name qty price" (supermarket: "1  Sua TH True Milk  2  62,000")
     numbered_re = re.compile(
         r"^(\d{1,3})\s+(.+?)\s+(\d+)\s+([0-9][0-9.,]*)\s*$",
     )
-    # "name qty unit_price amount" (4-column)
     four_col_re = re.compile(
         r"^(.+?)\s+(\d+)\s+([0-9][0-9.,]*)\s+([0-9][0-9.,]*)\s*$",
     )
-    # "name qty price" (3-column generic)
     three_col_re = re.compile(
         r"^(.+?)\s+(\d+)\s+([0-9][0-9.,]*)\s*$",
+    )
+    sl_dg_re = re.compile(
+        r"SL\s*:\s*(\d*)\s*DG\s*:\s*([0-9][0-9.,]*)", re.IGNORECASE,
+    )
+    two_col_re = re.compile(
+        r"^(.+?)\s+([0-9][0-9.,]*)\s*$",
     )
 
     skip_keywords = [
@@ -182,81 +184,109 @@ def _parse_items(lines: list[str]) -> list[dict]:
         "so hd", "số hd", "ma hd", "mã hd", "ngay:", "ngày:",
         "phuc vu", "phục vụ", "mst:", "phieu", "phiếu",
         "khach hang", "khách hàng", "dien thoai", "điện thoại",
+        "kh:", "ds:", "sdt:", "cn:", "tt:", "ma gd",
+        "bao hanh", "doi tra", "hen gap", "quy khach", "quý khách",
+        "tien mat", "tiền mặt",
     ]
 
     items = []
+    pending_name = None
+
     for line in lines:
         stripped = line.strip()
         if not stripped:
             continue
         lower = stripped.lower()
-        if any(kw in lower for kw in skip_keywords):
+        check_lower = re.sub(r"\s+", " ", re.sub(r"\s*:", ":", lower))
+        if any(kw in check_lower for kw in skip_keywords):
             continue
         if re.match(r"^[\*\-\=\#\+]+$", stripped):
             continue
 
-        # Strip trailing currency suffix before matching
-        cleaned = re.sub(r"\s*(?:đ|vnd|vnđ)\s*$", "", stripped, flags=re.IGNORECASE)
+        cleaned = stripped
+        # Fix OCR misreads of quantity markers: l/I → 1
+        cleaned = re.sub(r"[xX](\d+)[vV]\b", r"x\1", cleaned)
+        cleaned = re.sub(r"^[IlL]x\b", "1x", cleaned)
+        cleaned = re.sub(r"\b[xX][IlL]\b", "x1", cleaned)
+        # Strip trailing currency suffix
+        cleaned = re.sub(r"\s*(?:đ|vnd|vnđ)\s*$", "", cleaned, flags=re.IGNORECASE)
         cleaned = re.sub(r"(\d)d\s*$", r"\1", cleaned, flags=re.IGNORECASE)
 
         item = None
 
-        # 1. qty_prefix: "1x Ca phe sua da  45,000"
         m = qty_prefix_re.match(cleaned)
         if m:
             qty = int(m.group(1))
-            name = m.group(2).strip()
+            name = re.sub(r"\s+", " ", m.group(2).strip())
             amount = _parse_price(m.group(3))
             if amount > 0 and _valid_item_name(name):
                 unit_price = amount / qty if qty > 0 else amount
                 item = _make_item(name, qty, unit_price, amount)
 
-        # 2. qty_suffix: "Tom su hap bia  x1  280,000"
         if not item:
             m = qty_suffix_re.match(cleaned)
             if m:
-                name = m.group(1).strip()
+                name = re.sub(r"\s+", " ", m.group(1).strip())
                 qty = int(m.group(2))
                 amount = _parse_price(m.group(3))
                 if amount > 0 and _valid_item_name(name):
                     unit_price = amount / qty if qty > 0 else amount
                     item = _make_item(name, qty, unit_price, amount)
 
-        # 3. numbered: "1  Sua TH True Milk  2  62,000"
         if not item:
             m = numbered_re.match(cleaned)
             if m:
-                name = m.group(2).strip()
+                name = re.sub(r"\s+", " ", m.group(2).strip())
                 qty = int(m.group(3))
                 amount = _parse_price(m.group(4))
                 if amount > 0 and _valid_item_name(name):
                     unit_price = amount / qty if qty > 0 else amount
                     item = _make_item(name, qty, unit_price, amount)
 
-        # 4. four_col: "name  qty  unit_price  amount"
         if not item:
             m = four_col_re.match(cleaned)
             if m:
-                name = m.group(1).strip()
+                name = re.sub(r"\s+", " ", m.group(1).strip())
                 qty = int(m.group(2))
                 unit_price = _parse_price(m.group(3))
                 amount = _parse_price(m.group(4))
                 if amount > 0 and _valid_item_name(name):
                     item = _make_item(name, qty, unit_price, amount)
 
-        # 5. three_col: "name  qty  price"
         if not item:
             m = three_col_re.match(cleaned)
             if m:
-                name = m.group(1).strip()
+                name = re.sub(r"\s+", " ", m.group(1).strip())
                 qty = int(m.group(2))
                 amount = _parse_price(m.group(3))
                 if amount > 0 and _valid_item_name(name):
                     unit_price = amount / qty if qty > 0 else amount
                     item = _make_item(name, qty, unit_price, amount)
 
+        if not item:
+            m = sl_dg_re.search(cleaned)
+            if m and pending_name:
+                qty_str = m.group(1)
+                qty = int(qty_str) if qty_str else 1
+                amount = _parse_price(m.group(2))
+                if amount > 0:
+                    unit_price = amount / qty if qty > 0 else amount
+                    item = _make_item(pending_name, qty, unit_price, amount)
+                    pending_name = None
+
+        if not item:
+            m = two_col_re.match(cleaned)
+            if m:
+                name = re.sub(r"\s+", " ", m.group(1).strip())
+                amount = _parse_price(m.group(2))
+                if amount >= 1000 and _valid_item_name(name):
+                    item = _make_item(name, 1, amount, amount)
+
         if item:
             items.append(item)
+            pending_name = None
+        elif len(stripped) >= 3 and _valid_item_name(stripped):
+            pending_name = re.sub(r"\s+", " ", stripped.strip())
 
     return items
 
