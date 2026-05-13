@@ -13,9 +13,48 @@ def get_reader():
 
 
 def extract_text(image_path: str) -> str:
+    """Extract text from receipt image with horizontal line merging.
+
+    Uses EasyOCR bounding boxes to group fragments sharing the same
+    horizontal line, producing cleaner line-by-line output.
+    """
     r = get_reader()
-    results = r.readtext(image_path, detail=0)
-    return "\n".join(results)
+    results = r.readtext(image_path, detail=1)
+    if not results:
+        return ""
+
+    fragments = []
+    for bbox, text, _conf in results:
+        y_center = sum(pt[1] for pt in bbox) / 4
+        x_left = min(pt[0] for pt in bbox)
+        height = max(pt[1] for pt in bbox) - min(pt[1] for pt in bbox)
+        fragments.append({
+            "text": text.strip(),
+            "y_center": y_center,
+            "x_left": x_left,
+            "height": max(height, 1),
+        })
+
+    fragments.sort(key=lambda f: f["y_center"])
+
+    avg_height = sum(f["height"] for f in fragments) / len(fragments)
+    threshold = max(avg_height * 0.5, 10)
+
+    merged_lines: list[str] = []
+    current_line = [fragments[0]]
+
+    for frag in fragments[1:]:
+        if abs(frag["y_center"] - current_line[0]["y_center"]) <= threshold:
+            current_line.append(frag)
+        else:
+            current_line.sort(key=lambda f: f["x_left"])
+            merged_lines.append("  ".join(f["text"] for f in current_line))
+            current_line = [frag]
+
+    current_line.sort(key=lambda f: f["x_left"])
+    merged_lines.append("  ".join(f["text"] for f in current_line))
+
+    return "\n".join(merged_lines)
 
 
 def _normalize_ocr_text(raw_text: str) -> str:
@@ -23,6 +62,8 @@ def _normalize_ocr_text(raw_text: str) -> str:
     text = raw_text
     # Fix spaces inside numbers like "216 , 000" -> "216,000" or "8 , 760 , 000" -> "8,760,000"
     text = re.sub(r"(\d)\s*,\s*(\d)", r"\1,\2", text)
+    # Fix spaces inside numbers with dots like "45. 000" -> "45.000"
+    text = re.sub(r"(\d)\s*\.\s*(\d)", r"\1.\2", text)
     # Fix spaces inside numbers like "575 225" -> "575225" (no separator)
     text = re.sub(r"(\d)\s+(\d{3})(?=\s|d|đ|$)", r"\1\2", text)
     return text
@@ -85,6 +126,141 @@ def _extract_supplier(lines: list[str]) -> str | None:
     return name
 
 
+def _parse_price(s: str) -> float:
+    """Parse a price string like '45,000' or '45.000' into a float."""
+    cleaned = s.replace(".", "").replace(",", "")
+    try:
+        return float(cleaned)
+    except ValueError:
+        return 0.0
+
+
+def _valid_item_name(name: str) -> bool:
+    """Check that name contains at least one letter."""
+    return bool(re.search(r"[a-zA-Z\u00C0-\u024F\u1E00-\u1EFF]", name))
+
+
+def _make_item(name: str, qty: int, unit_price: float, amount: float) -> dict:
+    return {
+        "item_name": name,
+        "quantity": qty,
+        "unit_price": unit_price,
+        "amount": amount,
+    }
+
+
+def _parse_items(lines: list[str]) -> list[dict]:
+    """Parse product lines from OCR text supporting multiple Vietnamese receipt formats."""
+    # "Nx name price" (coffee shop: "1x Ca phe sua da  45,000")
+    qty_prefix_re = re.compile(
+        r"^(\d+)\s*x\s+(.+?)\s+([0-9][0-9.,]*)\s*$", re.IGNORECASE,
+    )
+    # "name xN price" (restaurant: "Tom su hap bia  x1  280,000")
+    qty_suffix_re = re.compile(
+        r"^(.+?)\s+x(\d+)\s+([0-9][0-9.,]*)\s*$", re.IGNORECASE,
+    )
+    # "STT name qty price" (supermarket: "1  Sua TH True Milk  2  62,000")
+    numbered_re = re.compile(
+        r"^(\d{1,3})\s+(.+?)\s+(\d+)\s+([0-9][0-9.,]*)\s*$",
+    )
+    # "name qty unit_price amount" (4-column)
+    four_col_re = re.compile(
+        r"^(.+?)\s+(\d+)\s+([0-9][0-9.,]*)\s+([0-9][0-9.,]*)\s*$",
+    )
+    # "name qty price" (3-column generic)
+    three_col_re = re.compile(
+        r"^(.+?)\s+(\d+)\s+([0-9][0-9.,]*)\s*$",
+    )
+
+    skip_keywords = [
+        "tổng", "tong", "total", "thành tiền", "thanh tien", "thanh toan",
+        "vat", "cảm ơn", "cam on", "tel", "đt:", "dt:", "địa chỉ", "dia chi",
+        "hóa đơn", "hoa don", "---", "===", "hotline", "giam gia",
+        "phuong thuc", "khach dua", "tien thua", "phi dich vu",
+        "tam tinh", "tạm tính", "stt", "san pham", "sản phẩm",
+        "nv:", "ban:", "bàn:", "thu ngan", "thủ ngân",
+        "so hd", "số hd", "ma hd", "mã hd", "ngay:", "ngày:",
+        "phuc vu", "phục vụ", "mst:", "phieu", "phiếu",
+        "khach hang", "khách hàng", "dien thoai", "điện thoại",
+    ]
+
+    items = []
+    for line in lines:
+        stripped = line.strip()
+        if not stripped:
+            continue
+        lower = stripped.lower()
+        if any(kw in lower for kw in skip_keywords):
+            continue
+        if re.match(r"^[\*\-\=\#\+]+$", stripped):
+            continue
+
+        # Strip trailing currency suffix before matching
+        cleaned = re.sub(r"\s*(?:đ|vnd|vnđ)\s*$", "", stripped, flags=re.IGNORECASE)
+        cleaned = re.sub(r"(\d)d\s*$", r"\1", cleaned, flags=re.IGNORECASE)
+
+        item = None
+
+        # 1. qty_prefix: "1x Ca phe sua da  45,000"
+        m = qty_prefix_re.match(cleaned)
+        if m:
+            qty = int(m.group(1))
+            name = m.group(2).strip()
+            amount = _parse_price(m.group(3))
+            if amount > 0 and _valid_item_name(name):
+                unit_price = amount / qty if qty > 0 else amount
+                item = _make_item(name, qty, unit_price, amount)
+
+        # 2. qty_suffix: "Tom su hap bia  x1  280,000"
+        if not item:
+            m = qty_suffix_re.match(cleaned)
+            if m:
+                name = m.group(1).strip()
+                qty = int(m.group(2))
+                amount = _parse_price(m.group(3))
+                if amount > 0 and _valid_item_name(name):
+                    unit_price = amount / qty if qty > 0 else amount
+                    item = _make_item(name, qty, unit_price, amount)
+
+        # 3. numbered: "1  Sua TH True Milk  2  62,000"
+        if not item:
+            m = numbered_re.match(cleaned)
+            if m:
+                name = m.group(2).strip()
+                qty = int(m.group(3))
+                amount = _parse_price(m.group(4))
+                if amount > 0 and _valid_item_name(name):
+                    unit_price = amount / qty if qty > 0 else amount
+                    item = _make_item(name, qty, unit_price, amount)
+
+        # 4. four_col: "name  qty  unit_price  amount"
+        if not item:
+            m = four_col_re.match(cleaned)
+            if m:
+                name = m.group(1).strip()
+                qty = int(m.group(2))
+                unit_price = _parse_price(m.group(3))
+                amount = _parse_price(m.group(4))
+                if amount > 0 and _valid_item_name(name):
+                    item = _make_item(name, qty, unit_price, amount)
+
+        # 5. three_col: "name  qty  price"
+        if not item:
+            m = three_col_re.match(cleaned)
+            if m:
+                name = m.group(1).strip()
+                qty = int(m.group(2))
+                amount = _parse_price(m.group(3))
+                if amount > 0 and _valid_item_name(name):
+                    unit_price = amount / qty if qty > 0 else amount
+                    item = _make_item(name, qty, unit_price, amount)
+
+        if item:
+            items.append(item)
+
+    return items
+
+
 def parse_receipt(raw_text: str) -> dict:
     normalized = _normalize_ocr_text(raw_text)
     lines = normalized.strip().split("\n")
@@ -131,59 +307,7 @@ def parse_receipt(raw_text: str) -> dict:
     if found_totals:
         total_amount = max(found_totals)
 
-    items = []
-    item_pattern = re.compile(
-        r"^(.+?)\s+(\d+)\s+x?\s*([0-9.,]+)\s*$", re.IGNORECASE
-    )
-    price_pattern = re.compile(
-        r"^(.+?)\s+(\d+)\s+([0-9.,]+)\s+([0-9.,]+)\s*$"
-    )
-
-    skip_keywords = [
-        "tổng", "tong", "total", "thành tiền", "thanh tien", "thanh toan",
-        "vat", "cảm ơn", "cam on", "tel", "đt:", "dt:", "địa chỉ",
-        "hóa đơn số", "hoa don", "---", "===", "hotline", "giam gia",
-        "phuong thuc", "khach dua", "tien thua", "phi dich vu",
-    ]
-    for line in lines:
-        line = line.strip()
-        if not line or any(kw in line.lower() for kw in skip_keywords):
-            continue
-
-        m = price_pattern.match(line)
-        if m:
-            name = m.group(1).strip()
-            qty = int(m.group(2))
-            unit_price_str = m.group(3).replace(".", "").replace(",", "")
-            amount_str = m.group(4).replace(".", "").replace(",", "")
-            try:
-                unit_price = float(unit_price_str)
-                amount = float(amount_str)
-            except ValueError:
-                continue
-            items.append({
-                "item_name": name,
-                "quantity": qty,
-                "unit_price": unit_price,
-                "amount": amount,
-            })
-            continue
-
-        m = item_pattern.match(line)
-        if m:
-            name = m.group(1).strip()
-            qty = int(m.group(2))
-            price_str = m.group(3).replace(".", "").replace(",", "")
-            try:
-                unit_price = float(price_str)
-            except ValueError:
-                continue
-            items.append({
-                "item_name": name,
-                "quantity": qty,
-                "unit_price": unit_price,
-                "amount": unit_price * qty,
-            })
+    items = _parse_items(lines)
 
     return {
         "raw_text": raw_text,
