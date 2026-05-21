@@ -5,20 +5,25 @@ function getToken(): string | null {
   return localStorage.getItem("token");
 }
 
-async function request(path: string, options: RequestInit = {}): Promise<Response> {
+type ApiRequestOptions = RequestInit & {
+  skipAuthRedirect?: boolean;
+};
+
+async function request(path: string, options: ApiRequestOptions = {}): Promise<Response> {
+  const { skipAuthRedirect, ...fetchOptions } = options;
   const token = getToken();
   const headers: Record<string, string> = {
-    ...(options.headers as Record<string, string>),
+    ...(fetchOptions.headers as Record<string, string>),
   };
   if (token) {
     headers["Authorization"] = `Bearer ${token}`;
   }
-  if (!(options.body instanceof FormData)) {
+  if (!(fetchOptions.body instanceof FormData)) {
     headers["Content-Type"] = "application/json";
   }
 
-  const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
-  if (res.status === 401) {
+  const res = await fetch(`${API_BASE}${path}`, { ...fetchOptions, headers });
+  if (res.status === 401 && !skipAuthRedirect) {
     if (typeof window !== "undefined") {
       localStorage.removeItem("token");
       localStorage.removeItem("user");
@@ -33,10 +38,11 @@ export async function apiRegister(email: string, fullName: string, password: str
   const res = await request("/api/auth/register", {
     method: "POST",
     body: JSON.stringify({ email, full_name: fullName, password }),
+    skipAuthRedirect: true,
   });
   if (!res.ok) {
     const err = await res.json();
-    throw new Error(err.detail || "Registration failed");
+    throw new Error(err.detail || "Không đăng ký được tài khoản");
   }
   return res.json();
 }
@@ -45,17 +51,18 @@ export async function apiLogin(email: string, password: string) {
   const res = await request("/api/auth/login", {
     method: "POST",
     body: JSON.stringify({ email, password }),
+    skipAuthRedirect: true,
   });
   if (!res.ok) {
     const err = await res.json();
-    throw new Error(err.detail || "Login failed");
+    throw new Error(err.detail || "Không đăng nhập được");
   }
   return res.json();
 }
 
 export async function apiGetMe() {
   const res = await request("/api/auth/me");
-  if (!res.ok) throw new Error("Not authenticated");
+  if (!res.ok) throw new Error("Chưa đăng nhập");
   return res.json();
 }
 
@@ -69,7 +76,7 @@ export async function apiUploadReceipt(file: File) {
   });
   if (!res.ok) {
     const err = await res.json();
-    throw new Error(err.detail || "Upload failed");
+    throw new Error(err.detail || "Không tải được hóa đơn");
   }
   return res.json();
 }
@@ -88,13 +95,13 @@ export async function apiGetReceipts(params?: {
 
   const qs = query.toString();
   const res = await request(`/api/receipts${qs ? `?${qs}` : ""}`);
-  if (!res.ok) throw new Error("Failed to fetch receipts");
+  if (!res.ok) throw new Error("Không tải được danh sách hóa đơn");
   return res.json();
 }
 
 export async function apiGetReceipt(id: number) {
   const res = await request(`/api/receipts/${id}`);
-  if (!res.ok) throw new Error("Failed to fetch receipt");
+  if (!res.ok) throw new Error("Không tải được hóa đơn");
   return res.json();
 }
 
@@ -103,20 +110,65 @@ export async function apiUpdateReceipt(id: number, data: Record<string, unknown>
     method: "PUT",
     body: JSON.stringify(data),
   });
-  if (!res.ok) throw new Error("Failed to update receipt");
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.detail || "Không cập nhật được hóa đơn");
+  }
   return res.json();
 }
 
 export async function apiDeleteReceipt(id: number) {
   const res = await request(`/api/receipts/${id}`, { method: "DELETE" });
-  if (!res.ok) throw new Error("Failed to delete receipt");
+  if (!res.ok) throw new Error("Không xóa được hóa đơn");
+  return res.json();
+}
+
+// Chat
+export interface ChatSource {
+  receipt_id: number;
+  supplier_name: string | null;
+  receipt_date: string | null;
+  total_amount: number;
+  image_url: string;
+  chunk_text: string;
+  score: number;
+}
+
+export interface ChatResponse {
+  answer: string;
+  route: string;
+  sources: ChatSource[];
+  sql_result: Record<string, unknown> | null;
+  confidence: number;
+}
+
+export async function apiChat(message: string, filters?: {
+  receipt_ids?: number[];
+  date_from?: string;
+  date_to?: string;
+  category_id?: number;
+}): Promise<ChatResponse> {
+  const res = await request("/api/chat", {
+    method: "POST",
+    body: JSON.stringify({ message, ...filters }),
+  });
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.detail || "Không gửi được câu hỏi");
+  }
+  return res.json();
+}
+
+export async function apiReindexChat() {
+  const res = await request("/api/chat/reindex", { method: "POST" });
+  if (!res.ok) throw new Error("Không làm mới được dữ liệu chat");
   return res.json();
 }
 
 // Categories
 export async function apiGetCategories() {
   const res = await request("/api/categories");
-  if (!res.ok) throw new Error("Failed to fetch categories");
+  if (!res.ok) throw new Error("Không tải được danh mục");
   return res.json();
 }
 
@@ -125,27 +177,82 @@ export async function apiCreateCategory(name: string) {
     method: "POST",
     body: JSON.stringify({ name }),
   });
-  if (!res.ok) throw new Error("Failed to create category");
+  if (!res.ok) throw new Error("Không tạo được danh mục");
   return res.json();
 }
 
 export async function apiDeleteCategory(id: number) {
   const res = await request(`/api/categories/${id}`, { method: "DELETE" });
-  if (!res.ok) throw new Error("Failed to delete category");
+  if (!res.ok) throw new Error("Không xóa được danh mục");
+  return res.json();
+}
+
+// Budgets
+export interface BudgetCategorySummary {
+  budget_id: number | null;
+  category_id: number;
+  category_name: string;
+  month: string;
+  budget_amount: number;
+  spent_amount: number;
+  remaining_amount: number;
+  usage_percent: number;
+  status: "unset" | "ok" | "warning" | "over";
+}
+
+export interface BudgetSummary {
+  month: string;
+  total_budget: number;
+  total_spent: number;
+  total_remaining: number;
+  categories: BudgetCategorySummary[];
+}
+
+export async function apiGetBudgets(month: string): Promise<BudgetSummary> {
+  const res = await request(`/api/budgets?month=${encodeURIComponent(month)}`);
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.detail || "Không tải được ngân sách");
+  }
+  return res.json();
+}
+
+export async function apiUpsertBudget(data: {
+  category_id: number;
+  month: string;
+  amount: number;
+}): Promise<BudgetCategorySummary> {
+  const res = await request("/api/budgets", {
+    method: "PUT",
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.detail || "Không lưu được ngân sách");
+  }
+  return res.json();
+}
+
+export async function apiDeleteBudget(id: number) {
+  const res = await request(`/api/budgets/${id}`, { method: "DELETE" });
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.detail || "Không xóa được ngân sách");
+  }
   return res.json();
 }
 
 // Dashboard
 export async function apiGetDashboard() {
   const res = await request("/api/dashboard");
-  if (!res.ok) throw new Error("Failed to fetch dashboard");
+  if (!res.ok) throw new Error("Không tải được trang tổng quan");
   return res.json();
 }
 
 // Export
 export async function apiExportCSV() {
   const res = await request("/api/export/csv");
-  if (!res.ok) throw new Error("Failed to export CSV");
+  if (!res.ok) throw new Error("Không xuất được CSV");
   const blob = await res.blob();
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");

@@ -1,34 +1,31 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useEffect, useState } from "react"
 import {
-  Receipt,
-  TrendingUp,
-  TrendingDown,
-  DollarSign,
   Calculator,
-  Eye,
+  DollarSign,
   Loader2,
+  Receipt,
+  TrendingDown,
+  TrendingUp,
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
 import {
-  PieChart,
-  Pie,
-  Cell,
-  BarChart,
   Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
   XAxis,
   YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  Legend,
 } from "recharts"
 import { apiGetDashboard, apiGetReceipts } from "@/lib/api"
 
 const formatCurrency = (value: number) => {
-  return new Intl.NumberFormat("vi-VN").format(value) + "đ"
+  return new Intl.NumberFormat("vi-VN").format(value) + " đ"
 }
 
 interface DashboardData {
@@ -74,7 +71,7 @@ export function DashboardContent() {
         setDashboard(dashData)
         setRecentReceipts(receipts.slice(0, 5))
       } catch (err) {
-        console.error("Failed to fetch dashboard:", err)
+        console.error("Không tải được dữ liệu tổng quan:", err)
       } finally {
         setLoading(false)
       }
@@ -93,21 +90,21 @@ export function DashboardContent() {
   const stats = dashboard?.stats
   const statCards = [
     {
-      title: "Total Receipts",
-      value: stats?.total_receipts?.toLocaleString() ?? "0",
+      title: "Tổng hóa đơn",
+      value: stats?.total_receipts?.toLocaleString("vi-VN") ?? "0",
       icon: Receipt,
       iconBg: "bg-indigo-100",
       iconColor: "text-indigo-600",
     },
     {
-      title: "Total Spending",
+      title: "Tổng chi tiêu",
       value: formatCurrency(stats?.total_spending ?? 0),
       icon: DollarSign,
       iconBg: "bg-emerald-100",
       iconColor: "text-emerald-600",
     },
     {
-      title: "This Month",
+      title: "Tháng này",
       value: formatCurrency(stats?.this_month_spending ?? 0),
       change: stats?.month_change_percent != null ? `${stats.month_change_percent > 0 ? "+" : ""}${stats.month_change_percent}%` : undefined,
       trend: stats?.month_change_percent != null ? (stats.month_change_percent >= 0 ? "up" : "down") : undefined,
@@ -116,7 +113,7 @@ export function DashboardContent() {
       iconColor: "text-blue-600",
     },
     {
-      title: "Avg per Receipt",
+      title: "Trung bình/hóa đơn",
       value: formatCurrency(stats?.avg_per_receipt ?? 0),
       icon: Calculator,
       iconBg: "bg-amber-100",
@@ -126,7 +123,6 @@ export function DashboardContent() {
 
   return (
     <div className="space-y-6">
-      {/* Stats Grid */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {statCards.map((stat) => {
           const Icon = stat.icon
@@ -161,7 +157,6 @@ export function DashboardContent() {
         })}
       </div>
 
-      {/* Charts Section */}
       <div className="grid gap-6 lg:grid-cols-2">
         <Card className="border-border bg-card shadow-sm">
           <CardHeader>
@@ -180,7 +175,7 @@ export function DashboardContent() {
                 </PieChart>
               </ResponsiveContainer>
             ) : (
-              <div className="flex items-center justify-center h-[280px] text-muted-foreground">Chưa có dữ liệu</div>
+              <div className="flex h-[280px] items-center justify-center text-muted-foreground">Chưa có dữ liệu</div>
             )}
           </CardContent>
         </Card>
@@ -194,7 +189,7 @@ export function DashboardContent() {
               <BarChart data={dashboard?.monthly_spending ?? []}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} />
                 <XAxis dataKey="month" />
-                <YAxis tickFormatter={(v) => `${(v / 1000000).toFixed(1)}M`} />
+                <YAxis tickFormatter={(value) => `${(Number(value) / 1000000).toFixed(1)}M`} />
                 <Tooltip formatter={(value: number) => formatCurrency(value)} />
                 <Bar dataKey="amount" fill="#6366f1" radius={[6, 6, 0, 0]} />
               </BarChart>
@@ -203,14 +198,13 @@ export function DashboardContent() {
         </Card>
       </div>
 
-      {/* Recent Receipts */}
       <Card className="border-border bg-card shadow-sm">
         <CardHeader>
           <CardTitle className="text-base font-semibold">Hóa đơn gần đây</CardTitle>
         </CardHeader>
         <CardContent>
           {recentReceipts.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">Chưa có hóa đơn nào. Hãy upload hóa đơn đầu tiên!</div>
+            <div className="py-8 text-center text-muted-foreground">Chưa có hóa đơn nào. Hãy tải hóa đơn đầu tiên!</div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full">
@@ -224,15 +218,15 @@ export function DashboardContent() {
                   </tr>
                 </thead>
                 <tbody>
-                  {recentReceipts.map((r) => (
-                    <tr key={r.id} className="border-b last:border-0">
-                      <td className="py-3 text-sm">{r.receipt_date || new Date(r.created_at).toLocaleDateString("vi-VN")}</td>
-                      <td className="py-3 text-sm font-medium">{r.supplier_name || "—"}</td>
-                      <td className="py-3 text-sm">{r.category_name || "—"}</td>
-                      <td className="py-3 text-sm text-right font-semibold text-indigo-600">{formatCurrency(r.total_amount)}</td>
+                  {recentReceipts.map((receipt) => (
+                    <tr key={receipt.id} className="border-b last:border-0">
+                      <td className="py-3 text-sm">{receipt.receipt_date || new Date(receipt.created_at).toLocaleDateString("vi-VN")}</td>
+                      <td className="py-3 text-sm font-medium">{receipt.supplier_name || "—"}</td>
+                      <td className="py-3 text-sm">{receipt.category_name || "—"}</td>
+                      <td className="py-3 text-right text-sm font-semibold text-indigo-600">{formatCurrency(receipt.total_amount)}</td>
                       <td className="py-3">
-                        <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${statusStyles[r.status] || "bg-gray-100 text-gray-700"}`}>
-                          {r.status}
+                        <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${statusStyles[receipt.status] || "bg-gray-100 text-gray-700"}`}>
+                          {receipt.status}
                         </span>
                       </td>
                     </tr>

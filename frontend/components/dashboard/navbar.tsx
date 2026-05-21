@@ -26,22 +26,22 @@ export function Navbar({ title, sidebarCollapsed }: NavbarProps) {
         sidebarCollapsed ? "left-16" : "left-64"
       )}
     >
-      {/* Page Title */}
+      {/* Page title */}
       <h1 className="text-xl font-semibold text-foreground">{title}</h1>
 
       {/* Right Section */}
       <div className="flex items-center gap-4">
-        {/* Search Bar */}
+        {/* Search */}
         <div className="relative hidden md:block">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <input
             type="text"
-            placeholder="Search receipts..."
+            placeholder="Tìm hóa đơn..."
             className="h-10 w-64 rounded-lg border border-input bg-background pl-10 pr-4 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition-colors"
           />
         </div>
 
-        {/* Mobile Search Button */}
+        {/* Mobile search */}
         <Button variant="ghost" size="icon" className="md:hidden">
           <Search className="h-5 w-5" />
         </Button>
@@ -56,7 +56,7 @@ export function Navbar({ title, sidebarCollapsed }: NavbarProps) {
           <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-primary" />
         </Button>
 
-        {/* User Dropdown */}
+        {/* User menu */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
@@ -64,7 +64,7 @@ export function Navbar({ title, sidebarCollapsed }: NavbarProps) {
               className="relative h-10 w-10 rounded-full p-0 ring-2 ring-transparent hover:ring-primary/20 transition-all"
             >
               <Avatar className="h-9 w-9">
-                <AvatarImage src="https://github.com/shadcn.png" alt="User" />
+                <AvatarImage src="https://github.com/shadcn.png" alt="Người dùng" />
                 <AvatarFallback className="bg-primary text-primary-foreground text-sm">
                   JD
                 </AvatarFallback>
@@ -74,29 +74,29 @@ export function Navbar({ title, sidebarCollapsed }: NavbarProps) {
           <DropdownMenuContent className="w-56" align="end" forceMount>
             <DropdownMenuLabel className="font-normal">
               <div className="flex flex-col space-y-1">
-                <p className="text-sm font-medium leading-none">John Doe</p>
+                <p className="text-sm font-medium leading-none">Người dùng</p>
                 <p className="text-xs leading-none text-muted-foreground">
-                  john@example.com
+                  smartreceipt@example.com
                 </p>
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem>
               <User className="mr-2 h-4 w-4" />
-              <span>Profile</span>
+              <span>Hồ sơ</span>
             </DropdownMenuItem>
             <DropdownMenuItem>
               <Settings className="mr-2 h-4 w-4" />
-              <span>Settings</span>
+              <span>Cài đặt</span>
             </DropdownMenuItem>
             <DropdownMenuItem>
               <HelpCircle className="mr-2 h-4 w-4" />
-              <span>Help & Support</span>
+              <span>Trợ giúp</span>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem className="text-destructive focus:text-destructive">
               <LogOut className="mr-2 h-4 w-4" />
-              <span>Log out</span>
+              <span>Đăng xuất</span>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

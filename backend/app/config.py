@@ -8,5 +8,11 @@ DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./smartreceipt.db")
 
 UPLOAD_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "uploads")
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
+VECTORSTORE_DIR = os.getenv(
+    "VECTORSTORE_DIR",
+    os.path.join(os.path.dirname(os.path.dirname(__file__)), "vectorstore"),
+)
+RAG_EMBEDDING_MODEL = os.getenv("RAG_EMBEDDING_MODEL", "intfloat/multilingual-e5-small")
 
 os.makedirs(UPLOAD_DIR, exist_ok=True)
+os.makedirs(VECTORSTORE_DIR, exist_ok=True)

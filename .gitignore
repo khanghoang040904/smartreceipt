@@ -4,6 +4,7 @@ __pycache__/
 *$py.class
 *.so
 venv/
+.venv/
 .env
 *.egg-info/
 dist/
@@ -12,6 +13,8 @@ build/
 # Node
 node_modules/
 dist/
+.next/
+*.tsbuildinfo
 .env.local
 .env.development.local
 .env.test.local
@@ -33,6 +36,7 @@ Thumbs.db
 # Uploads
 backend/uploads/*
 !backend/uploads/.gitkeep
+backend/vectorstore/
 
 # Logs
 *.log

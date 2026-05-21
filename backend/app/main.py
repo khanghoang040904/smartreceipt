@@ -4,7 +4,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app.database import engine, Base
 from app.config import UPLOAD_DIR
-from app.controllers import auth_controller, receipt_controller, category_controller, dashboard_controller, export_controller
+from app.controllers import auth_controller, receipt_controller, category_controller, dashboard_controller, export_controller, chat_controller, budget_controller
 
 Base.metadata.create_all(bind=engine)
 
@@ -29,6 +29,8 @@ app.include_router(receipt_controller.router)
 app.include_router(category_controller.router)
 app.include_router(dashboard_controller.router)
 app.include_router(export_controller.router)
+app.include_router(chat_controller.router)
+app.include_router(budget_controller.router)
 
 
 @app.get("/")

@@ -17,10 +17,14 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  const clearError = () => {
+    if (error) setError("");
+  };
+
   const passwordRequirements = [
-    { label: "At least 8 characters", met: password.length >= 8 },
-    { label: "Contains uppercase letter", met: /[A-Z]/.test(password) },
-    { label: "Contains number", met: /[0-9]/.test(password) },
+    { label: "Tối thiểu 8 ký tự", met: password.length >= 8 },
+    { label: "Có chữ in hoa", met: /[A-Z]/.test(password) },
+    { label: "Có chữ số", met: /[0-9]/.test(password) },
   ];
 
   const passwordsMatch = password === confirmPassword && confirmPassword.length > 0;
@@ -28,7 +32,7 @@ export default function RegisterPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (password !== confirmPassword) {
-      setError("Passwords do not match");
+      setError("Mật khẩu xác nhận không khớp");
       return;
     }
     setLoading(true);
@@ -39,7 +43,7 @@ export default function RegisterPage() {
       localStorage.setItem("user", JSON.stringify(data.user));
       router.push("/");
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Registration failed");
+      setError(err instanceof Error ? err.message : "Không đăng ký được tài khoản");
     } finally {
       setLoading(false);
     }
@@ -61,13 +65,13 @@ export default function RegisterPage() {
             </div>
             <h1 className="text-3xl font-bold text-foreground">SmartReceipt</h1>
           </div>
-          <p className="text-muted-foreground">AI-Powered Expense Management</p>
+          <p className="text-muted-foreground">Quản lý chi tiêu từ hóa đơn thông minh</p>
         </div>
 
         <div className="bg-card rounded-2xl shadow-xl shadow-black/5 border border-border p-8">
           <div className="mb-6">
-            <h2 className="text-xl font-semibold text-card-foreground">Create an account</h2>
-            <p className="text-sm text-muted-foreground mt-1">Get started with your free account today</p>
+            <h2 className="text-xl font-semibold text-card-foreground">Tạo tài khoản</h2>
+            <p className="text-sm text-muted-foreground mt-1">Bắt đầu lưu và quản lý hóa đơn của bạn</p>
           </div>
 
           {error && (
@@ -76,26 +80,26 @@ export default function RegisterPage() {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <label htmlFor="fullName" className="text-sm font-medium text-foreground">Full name</label>
+              <label htmlFor="fullName" className="text-sm font-medium text-foreground">Họ và tên</label>
               <div className="relative">
                 <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-                <input id="fullName" type="text" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="John Doe" className="w-full h-11 pl-10 pr-4 rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all" required />
+                <input id="fullName" type="text" value={fullName} onChange={(e) => { clearError(); setFullName(e.target.value); }} placeholder="Nguyễn Văn A" className="w-full h-11 pl-10 pr-4 rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all" required />
               </div>
             </div>
 
             <div className="space-y-2">
-              <label htmlFor="email" className="text-sm font-medium text-foreground">Email address</label>
+              <label htmlFor="email" className="text-sm font-medium text-foreground">Email</label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-                <input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="name@company.com" className="w-full h-11 pl-10 pr-4 rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all" required />
+                <input id="email" type="email" value={email} onChange={(e) => { clearError(); setEmail(e.target.value); }} placeholder="name@company.com" className="w-full h-11 pl-10 pr-4 rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all" required />
               </div>
             </div>
 
             <div className="space-y-2">
-              <label htmlFor="password" className="text-sm font-medium text-foreground">Password</label>
+              <label htmlFor="password" className="text-sm font-medium text-foreground">Mật khẩu</label>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-                <input id="password" type={showPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Create a password" className="w-full h-11 pl-10 pr-12 rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all" required />
+                <input id="password" type={showPassword ? "text" : "password"} value={password} onChange={(e) => { clearError(); setPassword(e.target.value); }} placeholder="Tạo mật khẩu" className="w-full h-11 pl-10 pr-12 rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all" required />
                 <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors">
                   {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
@@ -113,10 +117,10 @@ export default function RegisterPage() {
             </div>
 
             <div className="space-y-2">
-              <label htmlFor="confirmPassword" className="text-sm font-medium text-foreground">Confirm password</label>
+              <label htmlFor="confirmPassword" className="text-sm font-medium text-foreground">Xác nhận mật khẩu</label>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-                <input id="confirmPassword" type={showConfirmPassword ? "text" : "password"} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Confirm your password" className="w-full h-11 pl-10 pr-12 rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all" required />
+                <input id="confirmPassword" type={showConfirmPassword ? "text" : "password"} value={confirmPassword} onChange={(e) => { clearError(); setConfirmPassword(e.target.value); }} placeholder="Nhập lại mật khẩu" className="w-full h-11 pl-10 pr-12 rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all" required />
                 <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors">
                   {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
@@ -125,7 +129,7 @@ export default function RegisterPage() {
                 <div className="flex items-center gap-2 text-xs pt-1">
                   {passwordsMatch ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <X className="w-3.5 h-3.5 text-red-500" />}
                   <span className={passwordsMatch ? "text-emerald-600" : "text-red-500"}>
-                    {passwordsMatch ? "Passwords match" : "Passwords do not match"}
+                    {passwordsMatch ? "Mật khẩu khớp" : "Mật khẩu chưa khớp"}
                   </span>
                 </div>
               )}
@@ -133,14 +137,14 @@ export default function RegisterPage() {
 
             <button type="submit" disabled={loading} className="w-full h-11 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 transition-all shadow-lg shadow-primary/25 disabled:opacity-50 flex items-center justify-center gap-2">
               {loading && <Loader2 className="w-4 h-4 animate-spin" />}
-              {loading ? "Creating account..." : "Create account"}
+              {loading ? "Đang tạo tài khoản..." : "Tạo tài khoản"}
             </button>
           </form>
         </div>
 
         <p className="text-center mt-6 text-sm text-muted-foreground">
-          Already have an account?{" "}
-          <Link href="/login" className="text-primary hover:text-primary/80 font-medium transition-colors">Sign in</Link>
+          Đã có tài khoản?{" "}
+          <Link href="/login" className="text-primary hover:text-primary/80 font-medium transition-colors">Đăng nhập</Link>
         </p>
       </div>
     </div>

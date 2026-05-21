@@ -13,3 +13,4 @@ class Category(Base):
 
     user: Mapped["User"] = relationship(back_populates="categories")
     receipts: Mapped[list["Receipt"]] = relationship(back_populates="category")
+    budgets: Mapped[list["Budget"]] = relationship(back_populates="category", cascade="all, delete-orphan")

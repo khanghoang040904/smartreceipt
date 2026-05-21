@@ -33,7 +33,7 @@ def create_access_token(user_id: int) -> str:
 def register_user(email: str, full_name: str, password: str, db: Session) -> User:
     existing = db.query(User).filter(User.email == email).first()
     if existing:
-        raise HTTPException(status_code=400, detail="Email already registered")
+        raise HTTPException(status_code=400, detail="Email này đã được đăng ký")
 
     user = User(
         email=email,
@@ -53,8 +53,10 @@ def register_user(email: str, full_name: str, password: str, db: Session) -> Use
 
 def login_user(email: str, password: str, db: Session) -> tuple[User, str]:
     user = db.query(User).filter(User.email == email).first()
-    if not user or not verify_password(password, user.password_hash):
-        raise HTTPException(status_code=401, detail="Invalid credentials")
+    if not user:
+        raise HTTPException(status_code=404, detail="Không tìm thấy tài khoản với email này")
+    if not verify_password(password, user.password_hash):
+        raise HTTPException(status_code=401, detail="Mật khẩu không đúng")
 
     token = create_access_token(user.id)
     return user, token

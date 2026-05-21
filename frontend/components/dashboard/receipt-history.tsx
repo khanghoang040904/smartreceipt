@@ -7,7 +7,6 @@ import {
   LayoutGrid,
   List,
   Eye,
-  Pencil,
   Trash2,
   ChevronLeft,
   ChevronRight,
@@ -51,7 +50,18 @@ function StatusBadge({ status }: { status: string }) {
 
 function ReceiptCard({ item, onView, onDelete }: { item: ReceiptItem; onView: (id: number) => void; onDelete: (id: number) => void }) {
   return (
-    <div className="group rounded-xl border border-border bg-card shadow-sm hover:shadow-md transition-shadow duration-200 overflow-hidden flex flex-col">
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={() => onView(item.id)}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault()
+          onView(item.id)
+        }
+      }}
+      className="group flex cursor-pointer flex-col overflow-hidden rounded-xl border border-border bg-card shadow-sm transition-shadow duration-200 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-ring"
+    >
       <div className="h-32 bg-gradient-to-br from-indigo-50 to-blue-100 flex items-center justify-center relative">
         <Receipt className="h-12 w-12 text-indigo-300" />
         <div className="absolute top-2 right-2"><StatusBadge status={item.status} /></div>
@@ -70,10 +80,10 @@ function ReceiptCard({ item, onView, onDelete }: { item: ReceiptItem; onView: (i
         <p className="mt-auto pt-2 text-base font-bold text-indigo-600">{formatVND(item.total_amount)}</p>
       </div>
       <div className="flex border-t border-border divide-x divide-border">
-        <button onClick={() => onView(item.id)} className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs text-muted-foreground hover:text-indigo-600 hover:bg-indigo-50 transition-colors">
+        <button onClick={(event) => { event.stopPropagation(); onView(item.id) }} className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs text-muted-foreground hover:text-indigo-600 hover:bg-indigo-50 transition-colors">
           <Eye className="h-3.5 w-3.5" /> Xem
         </button>
-        <button onClick={() => onDelete(item.id)} className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs text-muted-foreground hover:text-red-600 hover:bg-red-50 transition-colors">
+        <button onClick={(event) => { event.stopPropagation(); onDelete(item.id) }} className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs text-muted-foreground hover:text-red-600 hover:bg-red-50 transition-colors">
           <Trash2 className="h-3.5 w-3.5" /> Xóa
         </button>
       </div>
@@ -159,7 +169,7 @@ export function ReceiptHistory({ onViewReceipt }: { onViewReceipt: (id: number) 
         <div className="flex items-center gap-2">
           <button onClick={() => apiExportCSV()} className="flex items-center gap-1.5 h-9 px-3 rounded-lg border border-border bg-background text-sm hover:bg-muted">
             <Download className="h-4 w-4" />
-            Export CSV
+            Xuất CSV
           </button>
           <div className="flex rounded-lg border border-border overflow-hidden">
             <button onClick={() => setViewMode("table")} className={cn("p-2", viewMode === "table" ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted")}>
@@ -176,7 +186,7 @@ export function ReceiptHistory({ onViewReceipt }: { onViewReceipt: (id: number) 
         <div className="text-center py-16 text-muted-foreground">
           <Receipt className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50" />
           <p className="text-lg font-medium">Chưa có hóa đơn nào</p>
-          <p className="text-sm mt-1">Hãy upload hóa đơn đầu tiên từ trang Upload</p>
+          <p className="text-sm mt-1">Hãy tải hóa đơn đầu tiên từ trang Tải hóa đơn</p>
         </div>
       ) : viewMode === "grid" ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
@@ -199,7 +209,7 @@ export function ReceiptHistory({ onViewReceipt }: { onViewReceipt: (id: number) 
             </thead>
             <tbody>
               {pagedReceipts.map((item) => (
-                <tr key={item.id} className="border-b last:border-0 hover:bg-muted/20">
+                <tr key={item.id} onClick={() => onViewReceipt(item.id)} className="cursor-pointer border-b last:border-0 hover:bg-muted/20">
                   <td className="px-4 py-3 text-sm">{item.receipt_date || new Date(item.created_at).toLocaleDateString("vi-VN")}</td>
                   <td className="px-4 py-3 text-sm font-medium">{item.supplier_name || "—"}</td>
                   <td className="px-4 py-3 text-sm">{item.category_name || "—"}</td>
@@ -207,10 +217,10 @@ export function ReceiptHistory({ onViewReceipt }: { onViewReceipt: (id: number) 
                   <td className="px-4 py-3"><StatusBadge status={item.status} /></td>
                   <td className="px-4 py-3 text-right">
                     <div className="flex items-center justify-end gap-1">
-                      <button onClick={() => onViewReceipt(item.id)} className="p-1.5 rounded hover:bg-indigo-50 text-muted-foreground hover:text-indigo-600">
+                      <button onClick={(event) => { event.stopPropagation(); onViewReceipt(item.id) }} className="p-1.5 rounded hover:bg-indigo-50 text-muted-foreground hover:text-indigo-600">
                         <Eye className="h-4 w-4" />
                       </button>
-                      <button onClick={() => handleDelete(item.id)} className="p-1.5 rounded hover:bg-red-50 text-muted-foreground hover:text-red-600">
+                      <button onClick={(event) => { event.stopPropagation(); handleDelete(item.id) }} className="p-1.5 rounded hover:bg-red-50 text-muted-foreground hover:text-red-600">
                         <Trash2 className="h-4 w-4" />
                       </button>
                     </div>

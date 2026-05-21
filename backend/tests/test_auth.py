@@ -25,7 +25,7 @@ def test_register_duplicate_email(client):
         "password": "Test1234",
     })
     assert response.status_code == 400
-    assert "already registered" in response.json()["detail"]
+    assert "đã được đăng ký" in response.json()["detail"]
 
 
 # TC3: Login successfully
@@ -57,6 +57,16 @@ def test_login_wrong_password(client):
         "password": "WrongPass",
     })
     assert response.status_code == 401
+    assert response.json()["detail"] == "Mật khẩu không đúng"
+
+
+def test_login_missing_account(client):
+    response = client.post("/api/auth/login", json={
+        "email": "missing@test.com",
+        "password": "Test1234",
+    })
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Không tìm thấy tài khoản với email này"
 
 
 # TC5: Get current user (authenticated)

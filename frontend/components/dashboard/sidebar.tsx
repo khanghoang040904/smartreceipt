@@ -4,7 +4,8 @@ import {
   LayoutDashboard,
   Upload,
   List,
-  Tag,
+  DollarSign,
+  MessageSquare,
   Receipt,
   ChevronLeft,
   ChevronRight,
@@ -25,13 +26,14 @@ interface SidebarProps {
 }
 
 const navItems = [
-  { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { id: "upload", label: "Upload Receipt", icon: Upload },
-  { id: "history", label: "Receipt History", icon: List },
-  { id: "categories", label: "Categories", icon: Tag },
+  { id: "dashboard", label: "Tổng quan", icon: LayoutDashboard },
+  { id: "upload", label: "Tải hóa đơn", icon: Upload },
+  { id: "history", label: "Lịch sử hóa đơn", icon: List },
+  { id: "chat", label: "Trợ lý", icon: MessageSquare },
+  { id: "budget", label: "Ngân sách", icon: DollarSign },
 ]
 
-export function Sidebar({ activeItem, onNavigate, isCollapsed, onToggle, userName = "User", userEmail = "", onLogout }: SidebarProps) {
+export function Sidebar({ activeItem, onNavigate, isCollapsed, onToggle, userName = "Người dùng", userEmail = "", onLogout }: SidebarProps) {
   const initials = userName.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2)
 
   return (
@@ -109,7 +111,7 @@ export function Sidebar({ activeItem, onNavigate, isCollapsed, onToggle, userNam
         >
           <LogOut className="h-5 w-5 shrink-0" />
           <span className={cn("whitespace-nowrap transition-opacity duration-200", isCollapsed ? "opacity-0 w-0 hidden" : "opacity-100")}>
-            Logout
+            Đăng xuất
           </span>
         </Button>
       </div>

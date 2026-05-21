@@ -7,8 +7,8 @@ const _geist = Geist({ subsets: ["latin"] });
 const _geistMono = Geist_Mono({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: 'SmartReceipt - Receipt Management Dashboard',
-  description: 'Track and manage your receipts with SmartReceipt',
+  title: 'SmartReceipt - Quản lý hóa đơn',
+  description: 'Theo dõi và quản lý hóa đơn với SmartReceipt',
   generator: 'v0.app',
   icons: {
     icon: [
@@ -35,7 +35,7 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" className="bg-background">
+    <html lang="vi" className="bg-background">
       <body className="font-sans antialiased bg-background">
         {children}
         {process.env.NODE_ENV === 'production' && <Analytics />}

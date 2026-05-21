@@ -13,6 +13,7 @@ from app.models.category import Category
 from app.schemas.receipt import ReceiptResponse, ReceiptUpdate, ReceiptItemResponse
 from app.services.auth_service import get_current_user
 from app.services.ocr_service import extract_text, parse_receipt
+from app.services.receipt_index_service import receipt_index_service
 
 router = APIRouter(prefix="/api/receipts", tags=["Receipts"])
 
@@ -89,6 +90,7 @@ async def upload_receipt(
         db.add(item)
     db.commit()
     db.refresh(receipt)
+    receipt_index_service.upsert_receipt(receipt)
 
     return receipt_to_response(receipt)
 
@@ -147,6 +149,12 @@ def update_receipt(
     if data.total_amount is not None:
         receipt.total_amount = data.total_amount
     if data.category_id is not None:
+        category = db.query(Category).filter(
+            Category.id == data.category_id,
+            Category.user_id == user.id,
+        ).first()
+        if not category:
+            raise HTTPException(status_code=400, detail="Category not found")
         receipt.category_id = data.category_id
     if data.status is not None:
         receipt.status = data.status
@@ -166,6 +174,7 @@ def update_receipt(
     receipt.updated_at = datetime.utcnow()
     db.commit()
     db.refresh(receipt)
+    receipt_index_service.upsert_receipt(receipt)
     return receipt_to_response(receipt)
 
 
@@ -183,6 +192,7 @@ def delete_receipt(
     if os.path.exists(image_path):
         os.remove(image_path)
 
+    receipt_index_service.delete_receipt(user.id, receipt.id)
     db.delete(receipt)
     db.commit()
     return {"message": "Receipt deleted"}

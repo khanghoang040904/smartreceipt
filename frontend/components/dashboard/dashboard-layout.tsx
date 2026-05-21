@@ -7,13 +7,16 @@ import { Navbar } from "./navbar"
 import { UploadReceipt } from "./upload-receipt"
 import { ReceiptHistory } from "./receipt-history"
 import { ReceiptDetail } from "./receipt-detail"
+import { ReceiptChat } from "./receipt-chat"
+import { BudgetPage } from "./budget-page"
 import { cn } from "@/lib/utils"
 
 const pageTitles: Record<string, string> = {
-  dashboard: "Dashboard",
-  upload: "Upload Receipt",
-  history: "Receipt History",
-  categories: "Categories",
+  dashboard: "Tổng quan",
+  upload: "Tải hóa đơn",
+  history: "Lịch sử hóa đơn",
+  budget: "Ngân sách",
+  chat: "Trợ lý hóa đơn",
   detail: "Chi tiết hóa đơn",
 }
 
@@ -32,7 +35,7 @@ export function DashboardLayout({
   const [isCollapsed, setIsCollapsed] = useState(false)
   const [currentPage, setCurrentPage] = useState(activeItem)
   const [selectedReceiptId, setSelectedReceiptId] = useState<number | null>(null)
-  const [userName, setUserName] = useState("User")
+  const [userName, setUserName] = useState("Người dùng")
   const [userEmail, setUserEmail] = useState("")
 
   useEffect(() => {
@@ -45,7 +48,7 @@ export function DashboardLayout({
     if (userStr) {
       try {
         const user = JSON.parse(userStr)
-        setUserName(user.full_name || "User")
+        setUserName(user.full_name || "Người dùng")
         setUserEmail(user.email || "")
       } catch {}
     }
@@ -75,6 +78,8 @@ export function DashboardLayout({
   const renderContent = () => {
     if (currentPage === "upload") return <UploadReceipt />
     if (currentPage === "history") return <ReceiptHistory onViewReceipt={handleViewReceipt} />
+    if (currentPage === "chat") return <ReceiptChat onViewReceipt={handleViewReceipt} />
+    if (currentPage === "budget") return <BudgetPage />
     if (currentPage === "detail") return <ReceiptDetail receiptId={selectedReceiptId} onBack={handleBackFromDetail} />
     return children
   }
@@ -91,7 +96,7 @@ export function DashboardLayout({
         onLogout={handleLogout}
       />
       <Navbar
-        title={pageTitles[currentPage] || "Dashboard"}
+        title={pageTitles[currentPage] || "Tổng quan"}
         sidebarCollapsed={isCollapsed}
       />
       <main

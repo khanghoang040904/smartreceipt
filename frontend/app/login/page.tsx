@@ -15,6 +15,10 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  const clearError = () => {
+    if (error) setError("");
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -25,7 +29,7 @@ export default function LoginPage() {
       localStorage.setItem("user", JSON.stringify(data.user));
       router.push("/");
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Login failed");
+      setError(err instanceof Error ? err.message : "Không đăng nhập được");
     } finally {
       setLoading(false);
     }
@@ -47,13 +51,13 @@ export default function LoginPage() {
             </div>
             <h1 className="text-3xl font-bold text-foreground">SmartReceipt</h1>
           </div>
-          <p className="text-muted-foreground">AI-Powered Expense Management</p>
+          <p className="text-muted-foreground">Quản lý chi tiêu từ hóa đơn thông minh</p>
         </div>
 
         <div className="bg-card rounded-2xl shadow-xl shadow-black/5 border border-border p-8">
           <div className="mb-6">
-            <h2 className="text-xl font-semibold text-card-foreground">Welcome back</h2>
-            <p className="text-sm text-muted-foreground mt-1">Sign in to your account to continue</p>
+            <h2 className="text-xl font-semibold text-card-foreground">Đăng nhập</h2>
+            <p className="text-sm text-muted-foreground mt-1">Tiếp tục quản lý hóa đơn của bạn</p>
           </div>
 
           {error && (
@@ -62,18 +66,18 @@ export default function LoginPage() {
 
           <form onSubmit={handleSubmit} className="space-y-5">
             <div className="space-y-2">
-              <label htmlFor="email" className="text-sm font-medium text-foreground">Email address</label>
+              <label htmlFor="email" className="text-sm font-medium text-foreground">Email</label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-                <input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="name@company.com" className="w-full h-11 pl-10 pr-4 rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all" required />
+                <input id="email" type="email" value={email} onChange={(e) => { clearError(); setEmail(e.target.value); }} placeholder="name@company.com" className="w-full h-11 pl-10 pr-4 rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all" required />
               </div>
             </div>
 
             <div className="space-y-2">
-              <label htmlFor="password" className="text-sm font-medium text-foreground">Password</label>
+              <label htmlFor="password" className="text-sm font-medium text-foreground">Mật khẩu</label>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-                <input id="password" type={showPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Enter your password" className="w-full h-11 pl-10 pr-12 rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all" required />
+                <input id="password" type={showPassword ? "text" : "password"} value={password} onChange={(e) => { clearError(); setPassword(e.target.value); }} placeholder="Nhập mật khẩu" className="w-full h-11 pl-10 pr-12 rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all" required />
                 <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors">
                   {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
@@ -83,20 +87,20 @@ export default function LoginPage() {
             <div className="flex items-center justify-between">
               <label className="flex items-center gap-2 cursor-pointer">
                 <input type="checkbox" checked={rememberMe} onChange={(e) => setRememberMe(e.target.checked)} className="w-4 h-4 rounded border-input text-primary focus:ring-ring cursor-pointer accent-primary" />
-                <span className="text-sm text-muted-foreground">Remember me</span>
+                <span className="text-sm text-muted-foreground">Ghi nhớ đăng nhập</span>
               </label>
             </div>
 
             <button type="submit" disabled={loading} className="w-full h-11 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 transition-all shadow-lg shadow-primary/25 disabled:opacity-50 flex items-center justify-center gap-2">
               {loading && <Loader2 className="w-4 h-4 animate-spin" />}
-              {loading ? "Signing in..." : "Sign in"}
+              {loading ? "Đang đăng nhập..." : "Đăng nhập"}
             </button>
           </form>
         </div>
 
         <p className="text-center mt-6 text-sm text-muted-foreground">
-          {"Don't have an account? "}
-          <Link href="/register" className="text-primary hover:text-primary/80 font-medium transition-colors">Create account</Link>
+          Chưa có tài khoản?{" "}
+          <Link href="/register" className="text-primary hover:text-primary/80 font-medium transition-colors">Tạo tài khoản</Link>
         </p>
       </div>
     </div>

@@ -38,6 +38,15 @@ def client():
 
 
 @pytest.fixture
+def db_session():
+    db = TestingSessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+
+@pytest.fixture
 def auth_token(client):
     response = client.post("/api/auth/register", json={
         "email": "testuser@test.com",
