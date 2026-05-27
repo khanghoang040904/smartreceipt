@@ -26,6 +26,8 @@ def receipt_to_response(receipt: Receipt) -> ReceiptResponse:
         supplier_name=receipt.supplier_name,
         receipt_date=receipt.receipt_date,
         total_amount=receipt.total_amount,
+        vat_amount=receipt.vat_amount,
+        discount_amount=receipt.discount_amount,
         category_id=receipt.category_id,
         category_name=receipt.category.name if receipt.category else None,
         status=receipt.status,
@@ -72,6 +74,8 @@ async def upload_receipt(
         supplier_name=parsed["supplier_name"],
         receipt_date=parsed["receipt_date"],
         total_amount=parsed["total_amount"],
+        vat_amount=parsed.get("vat_amount", 0.0),
+        discount_amount=parsed.get("discount_amount", 0.0),
         status="Chờ duyệt",
     )
     db.add(receipt)
@@ -100,6 +104,7 @@ def list_receipts(
     category_id: int | None = Query(None),
     date_from: str | None = Query(None),
     date_to: str | None = Query(None),
+    status: str | None = Query(None),
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -109,6 +114,8 @@ def list_receipts(
         query = query.filter(Receipt.supplier_name.ilike(f"%{search}%"))
     if category_id:
         query = query.filter(Receipt.category_id == category_id)
+    if status:
+        query = query.filter(Receipt.status == status)
     if date_from:
         query = query.filter(Receipt.created_at >= datetime.fromisoformat(date_from))
     if date_to:
@@ -155,6 +162,10 @@ def update_receipt(
         if not category:
             raise HTTPException(status_code=400, detail="Category not found")
         receipt.category_id = data.category_id
+    if data.vat_amount is not None:
+        receipt.vat_amount = data.vat_amount
+    if data.discount_amount is not None:
+        receipt.discount_amount = data.discount_amount
     if data.status is not None:
         receipt.status = data.status
 
@@ -195,3 +206,59 @@ def delete_receipt(
     db.delete(receipt)
     db.commit()
     return {"message": "Receipt deleted"}
+
+
+@router.post("/batch-upload", response_model=list[ReceiptResponse])
+async def batch_upload_receipts(
+    files: list[UploadFile] = File(...),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    results = []
+    for file in files:
+        if file.content_type not in ["image/jpeg", "image/png"]:
+            continue
+
+        contents = await file.read()
+        if len(contents) > MAX_FILE_SIZE:
+            continue
+
+        ext = os.path.splitext(file.filename or "image.jpg")[1]
+        filename = f"{uuid.uuid4().hex}{ext}"
+        filepath = os.path.join(UPLOAD_DIR, filename)
+
+        with open(filepath, "wb") as f:
+            f.write(contents)
+
+        parsed = process_receipt(filepath)
+
+        receipt = Receipt(
+            user_id=user.id,
+            image_path=filename,
+            raw_text=parsed["raw_text"],
+            supplier_name=parsed["supplier_name"],
+            receipt_date=parsed["receipt_date"],
+            total_amount=parsed["total_amount"],
+            vat_amount=parsed.get("vat_amount", 0.0),
+            discount_amount=parsed.get("discount_amount", 0.0),
+            status="Chờ duyệt",
+        )
+        db.add(receipt)
+        db.commit()
+        db.refresh(receipt)
+
+        for item_data in parsed["items"]:
+            item = ReceiptItem(
+                receipt_id=receipt.id,
+                item_name=item_data["item_name"],
+                quantity=item_data["quantity"],
+                unit_price=item_data["unit_price"],
+                amount=item_data["amount"],
+            )
+            db.add(item)
+        db.commit()
+        db.refresh(receipt)
+        receipt_index_service.upsert_receipt(receipt)
+        results.append(receipt_to_response(receipt))
+
+    return results

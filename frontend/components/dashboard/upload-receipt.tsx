@@ -21,9 +21,9 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
-import { apiUploadReceipt, apiUpdateReceipt, apiGetCategories, apiCreateCategory, getImageUrl } from "@/lib/api"
+import { apiUploadReceipt, apiBatchUploadReceipts, apiUpdateReceipt, apiGetCategories, apiCreateCategory, getImageUrl } from "@/lib/api"
 
-type AppState = "upload" | "processing" | "results"
+type AppState = "upload" | "processing" | "results" | "batch-processing" | "batch-results"
 
 interface LineItem {
   id: number
@@ -45,18 +45,23 @@ const parseMoney = (value: string) => Number(value.replace(/[^\d]/g, "")) || 0
 const normalizeText = (value: string) =>
   value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim()
 
-function UploadZone({ onFile }: { onFile: (file: File) => void }) {
+function UploadZone({ onFile, onFiles }: { onFile: (file: File) => void; onFiles: (files: File[]) => void }) {
   const inputRef = useRef<HTMLInputElement>(null)
+  const batchInputRef = useRef<HTMLInputElement>(null)
   const [dragging, setDragging] = useState(false)
 
   const handleDrop = useCallback(
     (e: React.DragEvent) => {
       e.preventDefault()
       setDragging(false)
-      const file = e.dataTransfer.files?.[0]
-      if (file) onFile(file)
+      const files = Array.from(e.dataTransfer.files).filter(f => f.type === "image/jpeg" || f.type === "image/png")
+      if (files.length > 1) {
+        onFiles(files)
+      } else if (files.length === 1) {
+        onFile(files[0])
+      }
     },
-    [onFile]
+    [onFile, onFiles]
   )
 
   return (
@@ -85,14 +90,21 @@ function UploadZone({ onFile }: { onFile: (file: File) => void }) {
         </div>
         <div className="flex items-center gap-2 rounded-full border border-border bg-background px-4 py-1.5">
           <FileImage className="h-3.5 w-3.5 text-muted-foreground" />
-          <span className="text-xs text-muted-foreground">Hỗ trợ JPG, PNG — tối đa 10MB</span>
+          <span className="text-xs text-muted-foreground">Hỗ trợ JPG, PNG — tối đa 10MB — có thể chọn nhiều file</span>
         </div>
         <input ref={inputRef} type="file" accept="image/jpeg,image/png" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) onFile(f) }} />
+        <input ref={batchInputRef} type="file" accept="image/jpeg,image/png" multiple className="hidden" onChange={(e) => { const files = Array.from(e.target.files || []); if (files.length > 0) onFiles(files) }} />
       </div>
-      <Button onClick={() => inputRef.current?.click()} className="gap-2 bg-primary px-8 text-primary-foreground hover:bg-primary/90">
-        <Upload className="h-4 w-4" />
-        Chọn ảnh hóa đơn
-      </Button>
+      <div className="flex gap-3">
+        <Button onClick={() => inputRef.current?.click()} className="gap-2 bg-primary px-8 text-primary-foreground hover:bg-primary/90">
+          <Upload className="h-4 w-4" />
+          Chọn 1 ảnh
+        </Button>
+        <Button variant="outline" onClick={() => batchInputRef.current?.click()} className="gap-2 px-8">
+          <CloudUpload className="h-4 w-4" />
+          Chọn nhiều ảnh
+        </Button>
+      </div>
     </div>
   )
 }
@@ -129,6 +141,12 @@ export function UploadReceipt() {
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState("")
+  const [vat, setVat] = useState(0)
+  const [discount, setDiscount] = useState(0)
+  const [batchResults, setBatchResults] = useState<{id: number; supplier_name: string | null; total_amount: number; items_count: number}[]>([])
+  const [batchProgress, setBatchProgress] = useState(0)
+  const [batchTotal, setBatchTotal] = useState(0)
+  const [customCategory, setCustomCategory] = useState("")
 
   const itemsTotal = items.reduce((sum, item) => sum + Number(item.amount || 0), 0)
   const totalDiff = Math.abs(Number(total || 0) - itemsTotal)
@@ -167,6 +185,8 @@ export function UploadReceipt() {
       setSupplier(result.supplier_name || "")
       setDate(result.receipt_date || "")
       setTotal(result.total_amount || 0)
+      setVat(result.vat_amount || 0)
+      setDiscount(result.discount_amount || 0)
       setReceiptId(result.id)
       setImagePath(result.image_path)
       setCategoryId(null)
@@ -186,6 +206,41 @@ export function UploadReceipt() {
     }
   }
 
+  const handleBatchFiles = async (files: File[]) => {
+    setState("batch-processing")
+    setError("")
+    setBatchTotal(files.length)
+    setBatchProgress(0)
+    setBatchResults([])
+
+    try {
+      const result = await apiBatchUploadReceipts(files)
+      setBatchResults(result.map((r: { id: number; supplier_name: string | null; total_amount: number; items: unknown[] }) => ({
+        id: r.id,
+        supplier_name: r.supplier_name,
+        total_amount: r.total_amount,
+        items_count: r.items?.length || 0,
+      })))
+      setBatchProgress(files.length)
+      setState("batch-results")
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Không tải được hóa đơn")
+      setState("upload")
+    }
+  }
+
+  const handleCreateCustomCategory = async () => {
+    if (!customCategory.trim()) return
+    try {
+      const newCat = await apiCreateCategory(customCategory.trim())
+      setCategories((prev) => [...prev, newCat])
+      setCategoryId(newCat.id)
+      setCustomCategory("")
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Không tạo được danh mục")
+    }
+  }
+
   const handleSave = async () => {
     if (!receiptId) return
     if (!categoryId) {
@@ -199,6 +254,8 @@ export function UploadReceipt() {
         supplier_name: supplier,
         receipt_date: date,
         total_amount: total,
+        vat_amount: vat,
+        discount_amount: discount,
         category_id: categoryId,
         status: "Đã duyệt",
         items: items.map((item) => ({
@@ -225,12 +282,18 @@ export function UploadReceipt() {
     setSupplier("")
     setDate("")
     setTotal(0)
+    setVat(0)
+    setDiscount(0)
     setReceiptId(null)
     setImagePath("")
     setCategoryId(null)
     setZoom(1)
     setError("")
     setSaved(false)
+    setBatchResults([])
+    setBatchProgress(0)
+    setBatchTotal(0)
+    setCustomCategory("")
   }
 
   const updateItem = (id: number, field: keyof LineItem, value: string | number) => {
@@ -263,7 +326,7 @@ export function UploadReceipt() {
         </CardHeader>
         <CardContent>
           {error && <div className="mb-4 p-3 rounded-lg bg-red-50 text-red-600 text-sm">{error}</div>}
-          <UploadZone onFile={handleFile} />
+          <UploadZone onFile={handleFile} onFiles={handleBatchFiles} />
         </CardContent>
       </Card>
     )
@@ -276,6 +339,58 @@ export function UploadReceipt() {
           <ProcessingSpinner />
         </CardContent>
       </Card>
+    )
+  }
+
+  if (state === "batch-processing") {
+    return (
+      <Card className="border-border bg-card shadow-sm">
+        <CardContent>
+          <div className="flex flex-col items-center justify-center gap-6 py-24">
+            <div className="relative flex h-24 w-24 items-center justify-center">
+              <div className="absolute inset-0 animate-spin rounded-full border-4 border-primary/20 border-t-primary" />
+              <Loader2 className="h-8 w-8 animate-pulse text-primary" />
+            </div>
+            <div className="text-center">
+              <p className="text-lg font-semibold text-foreground">Đang xử lý {batchTotal} hóa đơn...</p>
+              <p className="mt-1 text-sm text-muted-foreground">Vui lòng đợi, quá trình này có thể mất vài phút</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  if (state === "batch-results") {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold">Kết quả tải hàng loạt</h2>
+          <Button variant="outline" onClick={handleReset} className="gap-2">
+            <RotateCcw className="h-4 w-4" />
+            Tải thêm
+          </Button>
+        </div>
+        <Card className="border-border bg-card shadow-sm">
+          <CardContent className="p-6">
+            <div className="flex items-center gap-3 mb-4 p-3 rounded-lg bg-emerald-50 text-emerald-700">
+              <CheckCircle2 className="h-5 w-5" />
+              <p className="font-medium">Đã xử lý thành công {batchResults.length}/{batchTotal} hóa đơn</p>
+            </div>
+            <div className="space-y-2">
+              {batchResults.map((r) => (
+                <div key={r.id} className="flex items-center justify-between rounded-lg border border-border p-3">
+                  <div>
+                    <p className="text-sm font-medium">{r.supplier_name || `Hóa đơn #${r.id}`}</p>
+                    <p className="text-xs text-muted-foreground">{r.items_count} sản phẩm</p>
+                  </div>
+                  <p className="text-sm font-semibold text-indigo-600">{fmt(r.total_amount)}</p>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     )
   }
 
@@ -334,12 +449,19 @@ export function UploadReceipt() {
               </div>
               <div>
                 <label className="text-xs font-medium text-muted-foreground uppercase">Danh mục</label>
-                <select value={categoryId ?? ""} onChange={(e) => { setError(""); setCategoryId(e.target.value ? Number(e.target.value) : null) }} className="mt-1 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm">
+                <select value={customCategory ? "__custom__" : (categoryId ?? "")} onChange={(e) => { setError(""); if (e.target.value === "__custom__") { setCustomCategory(" "); setCategoryId(null) } else { setCustomCategory(""); setCategoryId(e.target.value ? Number(e.target.value) : null) } }} className="mt-1 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm">
                   <option value="">-- Chọn danh mục --</option>
                   {categories.map((category) => (
                     <option key={category.id} value={category.id}>{category.name}</option>
                   ))}
+                  <option value="__custom__">+ Tạo danh mục mới...</option>
                 </select>
+                {customCategory !== "" && (
+                  <div className="mt-2 flex gap-2">
+                    <input type="text" value={customCategory.trim()} onChange={(e) => setCustomCategory(e.target.value)} placeholder="Nhập tên danh mục mới" className="flex-1 rounded-lg border border-input bg-background px-3 py-2 text-sm" />
+                    <Button size="sm" onClick={handleCreateCustomCategory} disabled={!customCategory.trim()}>Tạo</Button>
+                  </div>
+                )}
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -350,6 +472,22 @@ export function UploadReceipt() {
                   <label className="text-xs font-medium text-muted-foreground uppercase">Tổng tiền</label>
                   <div className="relative mt-1">
                     <input type="text" inputMode="numeric" value={formatNumber(total)} onChange={(e) => setTotal(parseMoney(e.target.value))} className="w-full rounded-lg border border-input bg-background px-3 py-2 pr-9 text-sm" />
+                    <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">đ</span>
+                  </div>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground uppercase">VAT</label>
+                  <div className="relative mt-1">
+                    <input type="text" inputMode="numeric" value={formatNumber(vat)} onChange={(e) => setVat(parseMoney(e.target.value))} className="w-full rounded-lg border border-input bg-background px-3 py-2 pr-9 text-sm" />
+                    <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">đ</span>
+                  </div>
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground uppercase">Giảm giá</label>
+                  <div className="relative mt-1">
+                    <input type="text" inputMode="numeric" value={formatNumber(discount)} onChange={(e) => setDiscount(parseMoney(e.target.value))} className="w-full rounded-lg border border-input bg-background px-3 py-2 pr-9 text-sm" />
                     <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">đ</span>
                   </div>
                 </div>

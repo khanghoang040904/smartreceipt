@@ -63,17 +63,17 @@ def _answer_with_gemini(request: ChatRequest, user_id: int, db: Session) -> Chat
 
     context_parts = []
     sources = []
+    RELEVANCE_THRESHOLD = 0.3
     for result in search_results[:6]:
         receipt = receipt_map.get(result.receipt_id)
         if receipt:
             context_parts.append(_build_receipt_context(receipt))
-            sources.append(_source_from_receipt(receipt, result.chunk_text, result.score))
+            if result.score >= RELEVANCE_THRESHOLD:
+                sources.append(_source_from_receipt(receipt, result.chunk_text, result.score))
 
     for receipt in all_receipts:
         if receipt.id not in search_receipt_ids:
             context_parts.append(_build_receipt_context(receipt))
-            if len(sources) < 5:
-                sources.append(_source_from_receipt(receipt, _receipt_summary(receipt), 0.5))
 
     receipt_context = "\n\n---\n\n".join(context_parts[:15])
 
