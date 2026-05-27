@@ -1,8 +1,10 @@
 import os
+from pathlib import Path
 
 from dotenv import load_dotenv
 
-load_dotenv()
+_backend_dir = Path(__file__).resolve().parent.parent
+load_dotenv(_backend_dir / ".env")
 
 SECRET_KEY = os.getenv("SECRET_KEY", "smartreceipt-secret-key-change-in-production")
 ALGORITHM = "HS256"
