@@ -10,6 +10,7 @@ import {
   ChevronLeft,
   ChevronRight,
   LogOut,
+  Info,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -26,6 +27,7 @@ interface SidebarProps {
 }
 
 const navItems = [
+  { id: "intro", label: "Giới thiệu", icon: Info },
   { id: "dashboard", label: "Tổng quan", icon: LayoutDashboard },
   { id: "upload", label: "Tải hóa đơn", icon: Upload },
   { id: "history", label: "Lịch sử hóa đơn", icon: List },

@@ -9,9 +9,11 @@ import { ReceiptHistory } from "./receipt-history"
 import { ReceiptDetail } from "./receipt-detail"
 import { ReceiptChat } from "./receipt-chat"
 import { ReportsPage } from "./reports-page"
+import { IntroductionPage } from "./introduction-page"
 import { cn } from "@/lib/utils"
 
 const pageTitles: Record<string, string> = {
+  intro: "Giới thiệu",
   dashboard: "Tổng quan",
   upload: "Tải hóa đơn",
   history: "Lịch sử hóa đơn",
@@ -78,6 +80,7 @@ export function DashboardLayout({
   }
 
   const renderContent = () => {
+    if (currentPage === "intro") return <IntroductionPage />
     if (currentPage === "upload") return <UploadReceipt />
     if (currentPage === "history") return <ReceiptHistory onViewReceipt={handleViewReceipt} />
     if (currentPage === "chat") return <ReceiptChat onViewReceipt={handleViewReceipt} />

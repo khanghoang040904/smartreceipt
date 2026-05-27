@@ -1,21 +1,10 @@
-import { Navbar } from "@/components/landing/navbar"
-import { HeroSection } from "@/components/landing/hero-section"
-import { FeaturesSection } from "@/components/landing/features-section"
-import { HowItWorksSection } from "@/components/landing/how-it-works-section"
-import { StatsSection } from "@/components/landing/stats-section"
-import { CTASection } from "@/components/landing/cta-section"
-import { Footer } from "@/components/landing/footer"
+import { DashboardLayout } from "@/components/dashboard/dashboard-layout"
+import { DashboardContent } from "@/components/dashboard/dashboard-content"
 
-export default function LandingPage() {
+export default function Home() {
   return (
-    <main className="min-h-screen bg-background">
-      <Navbar />
-      <HeroSection />
-      <FeaturesSection />
-      <HowItWorksSection />
-      <StatsSection />
-      <CTASection />
-      <Footer />
-    </main>
+    <DashboardLayout>
+      <DashboardContent />
+    </DashboardLayout>
   )
 }
