@@ -2,11 +2,31 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
+import logging
+from sqlalchemy import inspect, text
+
 from app.database import engine, Base
 from app.config import UPLOAD_DIR
 from app.controllers import auth_controller, receipt_controller, category_controller, dashboard_controller, export_controller, chat_controller, budget_controller
 
+logger = logging.getLogger(__name__)
+
 Base.metadata.create_all(bind=engine)
+
+_MIGRATIONS = [
+    ("receipts", "vat_amount", "REAL DEFAULT 0.0"),
+    ("receipts", "discount_amount", "REAL DEFAULT 0.0"),
+]
+
+with engine.connect() as conn:
+    inspector = inspect(engine)
+    for table, column, col_type in _MIGRATIONS:
+        if table in inspector.get_table_names():
+            existing = [c["name"] for c in inspector.get_columns(table)]
+            if column not in existing:
+                conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {column} {col_type}"))
+                logger.info("Added column %s.%s", table, column)
+    conn.commit()
 
 app = FastAPI(
     title="SmartReceipt API",

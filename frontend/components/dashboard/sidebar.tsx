@@ -4,7 +4,7 @@ import {
   LayoutDashboard,
   Upload,
   List,
-  DollarSign,
+  BarChart3,
   MessageSquare,
   Receipt,
   ChevronLeft,
@@ -30,7 +30,7 @@ const navItems = [
   { id: "upload", label: "Tải hóa đơn", icon: Upload },
   { id: "history", label: "Lịch sử hóa đơn", icon: List },
   { id: "chat", label: "Trợ lý", icon: MessageSquare },
-  { id: "budget", label: "Ngân sách", icon: DollarSign },
+  { id: "reports", label: "Báo cáo", icon: BarChart3 },
 ]
 
 export function Sidebar({ activeItem, onNavigate, isCollapsed, onToggle, userName = "Người dùng", userEmail = "", onLogout }: SidebarProps) {

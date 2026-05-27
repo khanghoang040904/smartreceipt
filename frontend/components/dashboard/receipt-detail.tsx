@@ -12,7 +12,6 @@ import {
   Calendar,
   Tag,
   Building2,
-  AlertTriangle,
   CheckCircle2,
   Loader2,
   PlusCircle,
@@ -84,34 +83,6 @@ function Field({ label, icon: Icon, children }: { label: string; icon: React.Ele
   )
 }
 
-function DeleteModal({ onConfirm, onCancel }: { onConfirm: () => void; onCancel: () => void }) {
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onCancel} />
-      <div className="relative z-10 w-full max-w-sm rounded-2xl border border-border bg-card p-6 shadow-xl">
-        <div className="flex flex-col items-center text-center gap-4">
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-red-50">
-            <AlertTriangle className="h-6 w-6 text-red-600" />
-          </div>
-          <div>
-            <h3 className="text-base font-semibold text-foreground">Xác nhận xóa hóa đơn</h3>
-            <p className="mt-1.5 text-sm text-muted-foreground leading-relaxed">
-              Hành động này không thể hoàn tác. Hóa đơn và toàn bộ dữ liệu liên quan sẽ bị xóa vĩnh viễn.
-            </p>
-          </div>
-          <div className="flex w-full gap-3 pt-1">
-            <button onClick={onCancel} className="flex-1 rounded-lg border border-border bg-background py-2 text-sm font-medium text-foreground hover:bg-muted transition-colors">
-              Hủy
-            </button>
-            <button onClick={onConfirm} className="flex-1 rounded-lg bg-red-600 py-2 text-sm font-medium text-white hover:bg-red-700 transition-colors">
-              Xóa
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
 
 export function ReceiptDetail({ receiptId, onBack }: { receiptId: number | null; onBack: () => void }) {
   const [receipt, setReceipt] = useState<ReceiptData | null>(null)
@@ -119,7 +90,6 @@ export function ReceiptDetail({ receiptId, onBack }: { receiptId: number | null;
   const [loading, setLoading] = useState(true)
   const [editing, setEditing] = useState(false)
   const [saving, setSaving] = useState(false)
-  const [showDelete, setShowDelete] = useState(false)
   const [zoom, setZoom] = useState(1)
 
   const [supplier, setSupplier] = useState("")
@@ -256,7 +226,6 @@ export function ReceiptDetail({ receiptId, onBack }: { receiptId: number | null;
 
   return (
     <div className="space-y-6">
-      {showDelete && <DeleteModal onConfirm={handleDelete} onCancel={() => setShowDelete(false)} />}
 
       {/* Header */}
       <div className="flex items-center justify-between">
@@ -285,7 +254,7 @@ export function ReceiptDetail({ receiptId, onBack }: { receiptId: number | null;
                 <Pencil className="h-3.5 w-3.5" />
                 Chỉnh sửa
               </button>
-              <button onClick={() => setShowDelete(true)} className="px-3 py-1.5 rounded-lg border border-red-200 text-red-600 text-sm hover:bg-red-50 flex items-center gap-1.5">
+              <button onClick={handleDelete} className="px-3 py-1.5 rounded-lg border border-red-200 text-red-600 text-sm hover:bg-red-50 flex items-center gap-1.5">
                 <Trash2 className="h-3.5 w-3.5" />
                 Xóa
               </button>

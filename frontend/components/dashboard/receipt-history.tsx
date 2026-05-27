@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect } from "react"
 import {
   Search,
   X,
@@ -14,11 +14,15 @@ import {
   Receipt,
   Loader2,
   Download,
+  CheckCircle2,
+  XCircle,
+  Clock,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { apiGetReceipts, apiDeleteReceipt, apiExportCSV } from "@/lib/api"
+import { apiGetReceipts, apiDeleteReceipt, apiUpdateReceipt, apiExportCSV } from "@/lib/api"
 
 type ViewMode = "table" | "grid"
+type StatusFilter = "all" | "Chờ duyệt" | "Đã duyệt" | "Từ chối"
 
 interface ReceiptItem {
   id: number
@@ -40,6 +44,13 @@ const statusStyles: Record<string, string> = {
   "Từ chối": "bg-red-50 text-red-600",
 }
 
+const statusFilters: { label: string; value: StatusFilter; icon: React.ElementType }[] = [
+  { label: "Tất cả", value: "all", icon: Receipt },
+  { label: "Chờ duyệt", value: "Chờ duyệt", icon: Clock },
+  { label: "Đã duyệt", value: "Đã duyệt", icon: CheckCircle2 },
+  { label: "Từ chối", value: "Từ chối", icon: XCircle },
+]
+
 function StatusBadge({ status }: { status: string }) {
   return (
     <span className={cn("inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium", statusStyles[status] || "bg-gray-50 text-gray-700")}>
@@ -48,7 +59,7 @@ function StatusBadge({ status }: { status: string }) {
   )
 }
 
-function ReceiptCard({ item, onView, onDelete }: { item: ReceiptItem; onView: (id: number) => void; onDelete: (id: number) => void }) {
+function ReceiptCard({ item, onView, onDelete, onApprove, onReject }: { item: ReceiptItem; onView: (id: number) => void; onDelete: (id: number) => void; onApprove: (id: number) => void; onReject: (id: number) => void }) {
   return (
     <div
       role="button"
@@ -83,6 +94,16 @@ function ReceiptCard({ item, onView, onDelete }: { item: ReceiptItem; onView: (i
         <button onClick={(event) => { event.stopPropagation(); onView(item.id) }} className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs text-muted-foreground hover:text-indigo-600 hover:bg-indigo-50 transition-colors">
           <Eye className="h-3.5 w-3.5" /> Xem
         </button>
+        {item.status === "Chờ duyệt" && (
+          <>
+            <button onClick={(event) => { event.stopPropagation(); onApprove(item.id) }} className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs text-muted-foreground hover:text-emerald-600 hover:bg-emerald-50 transition-colors">
+              <CheckCircle2 className="h-3.5 w-3.5" /> Duyệt
+            </button>
+            <button onClick={(event) => { event.stopPropagation(); onReject(item.id) }} className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs text-muted-foreground hover:text-red-600 hover:bg-red-50 transition-colors">
+              <XCircle className="h-3.5 w-3.5" /> Từ chối
+            </button>
+          </>
+        )}
         <button onClick={(event) => { event.stopPropagation(); onDelete(item.id) }} className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs text-muted-foreground hover:text-red-600 hover:bg-red-50 transition-colors">
           <Trash2 className="h-3.5 w-3.5" /> Xóa
         </button>
@@ -97,11 +118,15 @@ export function ReceiptHistory({ onViewReceipt }: { onViewReceipt: (id: number) 
   const [search, setSearch] = useState("")
   const [viewMode, setViewMode] = useState<ViewMode>("table")
   const [page, setPage] = useState(1)
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all")
 
-  const fetchReceipts = async (searchQuery?: string) => {
+  const fetchReceipts = async (searchQuery?: string, status?: StatusFilter) => {
     setLoading(true)
     try {
-      const data = await apiGetReceipts(searchQuery ? { search: searchQuery } : undefined)
+      const params: Record<string, string> = {}
+      if (searchQuery) params.search = searchQuery
+      if (status && status !== "all") params.status = status
+      const data = await apiGetReceipts(Object.keys(params).length > 0 ? params : undefined)
       setReceipts(data)
     } catch (err) {
       console.error(err)
@@ -111,19 +136,36 @@ export function ReceiptHistory({ onViewReceipt }: { onViewReceipt: (id: number) 
   }
 
   useEffect(() => {
-    fetchReceipts()
-  }, [])
+    fetchReceipts(search || undefined, statusFilter)
+  }, [statusFilter])
 
   const handleSearch = () => {
     setPage(1)
-    fetchReceipts(search || undefined)
+    fetchReceipts(search || undefined, statusFilter)
   }
 
   const handleDelete = async (id: number) => {
-    if (!confirm("Bạn có chắc muốn xóa hóa đơn này?")) return
     try {
       await apiDeleteReceipt(id)
       setReceipts((prev) => prev.filter((r) => r.id !== id))
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
+  const handleApprove = async (id: number) => {
+    try {
+      await apiUpdateReceipt(id, { status: "Đã duyệt" })
+      setReceipts((prev) => prev.map((r) => r.id === id ? { ...r, status: "Đã duyệt" } : r))
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
+  const handleReject = async (id: number) => {
+    try {
+      await apiUpdateReceipt(id, { status: "Từ chối" })
+      setReceipts((prev) => prev.map((r) => r.id === id ? { ...r, status: "Từ chối" } : r))
     } catch (err) {
       console.error(err)
     }
@@ -142,6 +184,31 @@ export function ReceiptHistory({ onViewReceipt }: { onViewReceipt: (id: number) 
 
   return (
     <div className="space-y-4">
+      {/* Status filter tabs */}
+      <div className="flex gap-1 rounded-lg border border-border bg-muted/30 p-1">
+        {statusFilters.map((filter) => {
+          const Icon = filter.icon
+          const count = filter.value === "all"
+            ? receipts.length
+            : receipts.filter((r) => r.status === filter.value).length
+          return (
+            <button
+              key={filter.value}
+              onClick={() => { setStatusFilter(filter.value); setPage(1) }}
+              className={cn(
+                "flex items-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                statusFilter === filter.value
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <Icon className="h-4 w-4" />
+              {filter.label}
+            </button>
+          )
+        })}
+      </div>
+
       {/* Toolbar */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
@@ -156,7 +223,7 @@ export function ReceiptHistory({ onViewReceipt }: { onViewReceipt: (id: number) 
               className="h-9 w-64 rounded-lg border border-input bg-background pl-9 pr-8 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
             />
             {search && (
-              <button onClick={() => { setSearch(""); fetchReceipts() }} className="absolute right-2 top-1/2 -translate-y-1/2">
+              <button onClick={() => { setSearch(""); fetchReceipts(undefined, statusFilter) }} className="absolute right-2 top-1/2 -translate-y-1/2">
                 <X className="h-4 w-4 text-muted-foreground" />
               </button>
             )}
@@ -191,7 +258,7 @@ export function ReceiptHistory({ onViewReceipt }: { onViewReceipt: (id: number) 
       ) : viewMode === "grid" ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {pagedReceipts.map((item) => (
-            <ReceiptCard key={item.id} item={item} onView={onViewReceipt} onDelete={handleDelete} />
+            <ReceiptCard key={item.id} item={item} onView={onViewReceipt} onDelete={handleDelete} onApprove={handleApprove} onReject={handleReject} />
           ))}
         </div>
       ) : (
@@ -217,10 +284,20 @@ export function ReceiptHistory({ onViewReceipt }: { onViewReceipt: (id: number) 
                   <td className="px-4 py-3"><StatusBadge status={item.status} /></td>
                   <td className="px-4 py-3 text-right">
                     <div className="flex items-center justify-end gap-1">
-                      <button onClick={(event) => { event.stopPropagation(); onViewReceipt(item.id) }} className="p-1.5 rounded hover:bg-indigo-50 text-muted-foreground hover:text-indigo-600">
+                      <button onClick={(event) => { event.stopPropagation(); onViewReceipt(item.id) }} className="p-1.5 rounded hover:bg-indigo-50 text-muted-foreground hover:text-indigo-600" title="Xem">
                         <Eye className="h-4 w-4" />
                       </button>
-                      <button onClick={(event) => { event.stopPropagation(); handleDelete(item.id) }} className="p-1.5 rounded hover:bg-red-50 text-muted-foreground hover:text-red-600">
+                      {item.status === "Chờ duyệt" && (
+                        <>
+                          <button onClick={(event) => { event.stopPropagation(); handleApprove(item.id) }} className="p-1.5 rounded hover:bg-emerald-50 text-muted-foreground hover:text-emerald-600" title="Duyệt">
+                            <CheckCircle2 className="h-4 w-4" />
+                          </button>
+                          <button onClick={(event) => { event.stopPropagation(); handleReject(item.id) }} className="p-1.5 rounded hover:bg-red-50 text-muted-foreground hover:text-red-600" title="Từ chối">
+                            <XCircle className="h-4 w-4" />
+                          </button>
+                        </>
+                      )}
+                      <button onClick={(event) => { event.stopPropagation(); handleDelete(item.id) }} className="p-1.5 rounded hover:bg-red-50 text-muted-foreground hover:text-red-600" title="Xóa">
                         <Trash2 className="h-4 w-4" />
                       </button>
                     </div>

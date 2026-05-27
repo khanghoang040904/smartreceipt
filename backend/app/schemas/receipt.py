@@ -22,6 +22,8 @@ class ReceiptUpdate(BaseModel):
     supplier_name: str | None = None
     receipt_date: str | None = None
     total_amount: float | None = None
+    vat_amount: float | None = None
+    discount_amount: float | None = None
     category_id: int | None = None
     status: str | None = None
     items: list[ReceiptItemCreate] | None = None
@@ -34,6 +36,8 @@ class ReceiptResponse(BaseModel):
     supplier_name: str | None
     receipt_date: str | None
     total_amount: float
+    vat_amount: float = 0.0
+    discount_amount: float = 0.0
     category_id: int | None
     category_name: str | None = None
     status: str
@@ -48,4 +52,6 @@ class OCRResult(BaseModel):
     supplier_name: str | None
     receipt_date: str | None
     total_amount: float
+    vat_amount: float = 0.0
+    discount_amount: float = 0.0
     items: list[ReceiptItemCreate]

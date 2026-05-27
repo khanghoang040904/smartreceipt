@@ -16,6 +16,8 @@ class Receipt(Base):
     supplier_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     receipt_date: Mapped[str | None] = mapped_column(String(50), nullable=True)
     total_amount: Mapped[float] = mapped_column(Float, default=0.0)
+    vat_amount: Mapped[float] = mapped_column(Float, default=0.0)
+    discount_amount: Mapped[float] = mapped_column(Float, default=0.0)
     category_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("categories.id"), nullable=True)
     status: Mapped[str] = mapped_column(String(50), default="Chờ duyệt")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)

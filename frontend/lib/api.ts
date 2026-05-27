@@ -81,17 +81,35 @@ export async function apiUploadReceipt(file: File) {
   return res.json();
 }
 
+export async function apiBatchUploadReceipts(files: File[]) {
+  const formData = new FormData();
+  for (const file of files) {
+    formData.append("files", file);
+  }
+  const res = await request("/api/receipts/batch-upload", {
+    method: "POST",
+    body: formData,
+  });
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.detail || "Không tải được hóa đơn");
+  }
+  return res.json();
+}
+
 export async function apiGetReceipts(params?: {
   search?: string;
   category_id?: number;
   date_from?: string;
   date_to?: string;
+  status?: string;
 }) {
   const query = new URLSearchParams();
   if (params?.search) query.set("search", params.search);
   if (params?.category_id) query.set("category_id", String(params.category_id));
   if (params?.date_from) query.set("date_from", params.date_from);
   if (params?.date_to) query.set("date_to", params.date_to);
+  if (params?.status) query.set("status", params.status);
 
   const qs = query.toString();
   const res = await request(`/api/receipts${qs ? `?${qs}` : ""}`);

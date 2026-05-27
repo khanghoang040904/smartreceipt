@@ -62,21 +62,24 @@ export function DashboardContent() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    let active = true
     async function fetchData() {
       try {
         const [dashData, receipts] = await Promise.all([
-          apiGetDashboard(),
-          apiGetReceipts(),
+          apiGetDashboard().catch(() => null),
+          apiGetReceipts().catch(() => []),
         ])
-        setDashboard(dashData)
-        setRecentReceipts(receipts.slice(0, 5))
+        if (!active) return
+        if (dashData) setDashboard(dashData)
+        setRecentReceipts(Array.isArray(receipts) ? receipts.slice(0, 5) : [])
       } catch (err) {
         console.error("Không tải được dữ liệu tổng quan:", err)
       } finally {
-        setLoading(false)
+        if (active) setLoading(false)
       }
     }
     fetchData()
+    return () => { active = false }
   }, [])
 
   if (loading) {

@@ -8,14 +8,14 @@ import { UploadReceipt } from "./upload-receipt"
 import { ReceiptHistory } from "./receipt-history"
 import { ReceiptDetail } from "./receipt-detail"
 import { ReceiptChat } from "./receipt-chat"
-import { BudgetPage } from "./budget-page"
+import { ReportsPage } from "./reports-page"
 import { cn } from "@/lib/utils"
 
 const pageTitles: Record<string, string> = {
   dashboard: "Tổng quan",
   upload: "Tải hóa đơn",
   history: "Lịch sử hóa đơn",
-  budget: "Ngân sách",
+  reports: "Báo cáo",
   chat: "Trợ lý hóa đơn",
   detail: "Chi tiết hóa đơn",
 }
@@ -79,7 +79,7 @@ export function DashboardLayout({
     if (currentPage === "upload") return <UploadReceipt />
     if (currentPage === "history") return <ReceiptHistory onViewReceipt={handleViewReceipt} />
     if (currentPage === "chat") return <ReceiptChat onViewReceipt={handleViewReceipt} />
-    if (currentPage === "budget") return <BudgetPage />
+    if (currentPage === "reports") return <ReportsPage />
     if (currentPage === "detail") return <ReceiptDetail receiptId={selectedReceiptId} onBack={handleBackFromDetail} />
     return children
   }
