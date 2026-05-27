@@ -87,7 +87,13 @@ def _answer_with_gemini(request: ChatRequest, user_id: int, db: Session) -> Chat
     if gemini_answer:
         mentioned_ids = set()
         for src in sources:
-            if f"#{src.receipt_id}" in gemini_answer or (src.supplier_name and src.supplier_name in gemini_answer):
+            id_mentioned = bool(re.search(rf"#{src.receipt_id}(?!\d)", gemini_answer))
+            name_mentioned = (
+                src.supplier_name
+                and len(src.supplier_name) >= 4
+                and src.supplier_name in gemini_answer
+            )
+            if id_mentioned or name_mentioned:
                 mentioned_ids.add(src.receipt_id)
 
         if mentioned_ids:
