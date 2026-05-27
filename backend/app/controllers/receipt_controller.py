@@ -1,3 +1,4 @@
+import logging
 import os
 import uuid
 from datetime import datetime
@@ -14,6 +15,8 @@ from app.schemas.receipt import ReceiptResponse, ReceiptUpdate, ReceiptItemRespo
 from app.services.auth_service import get_current_user
 from app.services.ocr_service import process_receipt
 from app.services.receipt_index_service import receipt_index_service
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/receipts", tags=["Receipts"])
 
@@ -227,38 +230,45 @@ async def batch_upload_receipts(
         filename = f"{uuid.uuid4().hex}{ext}"
         filepath = os.path.join(UPLOAD_DIR, filename)
 
-        with open(filepath, "wb") as f:
-            f.write(contents)
+        try:
+            with open(filepath, "wb") as f:
+                f.write(contents)
 
-        parsed = process_receipt(filepath)
+            parsed = process_receipt(filepath)
 
-        receipt = Receipt(
-            user_id=user.id,
-            image_path=filename,
-            raw_text=parsed["raw_text"],
-            supplier_name=parsed["supplier_name"],
-            receipt_date=parsed["receipt_date"],
-            total_amount=parsed["total_amount"],
-            vat_amount=parsed.get("vat_amount", 0.0),
-            discount_amount=parsed.get("discount_amount", 0.0),
-            status="Chờ duyệt",
-        )
-        db.add(receipt)
-        db.commit()
-        db.refresh(receipt)
-
-        for item_data in parsed["items"]:
-            item = ReceiptItem(
-                receipt_id=receipt.id,
-                item_name=item_data["item_name"],
-                quantity=item_data["quantity"],
-                unit_price=item_data["unit_price"],
-                amount=item_data["amount"],
+            receipt = Receipt(
+                user_id=user.id,
+                image_path=filename,
+                raw_text=parsed["raw_text"],
+                supplier_name=parsed["supplier_name"],
+                receipt_date=parsed["receipt_date"],
+                total_amount=parsed["total_amount"],
+                vat_amount=parsed.get("vat_amount", 0.0),
+                discount_amount=parsed.get("discount_amount", 0.0),
+                status="Chờ duyệt",
             )
-            db.add(item)
-        db.commit()
-        db.refresh(receipt)
-        receipt_index_service.upsert_receipt(receipt)
-        results.append(receipt_to_response(receipt))
+            db.add(receipt)
+            db.commit()
+            db.refresh(receipt)
+
+            for item_data in parsed["items"]:
+                item = ReceiptItem(
+                    receipt_id=receipt.id,
+                    item_name=item_data["item_name"],
+                    quantity=item_data["quantity"],
+                    unit_price=item_data["unit_price"],
+                    amount=item_data["amount"],
+                )
+                db.add(item)
+            db.commit()
+            db.refresh(receipt)
+            receipt_index_service.upsert_receipt(receipt)
+            results.append(receipt_to_response(receipt))
+        except Exception:
+            logger.exception("Failed to process file %s", file.filename)
+            db.rollback()
+            if os.path.exists(filepath):
+                os.remove(filepath)
+            continue
 
     return results

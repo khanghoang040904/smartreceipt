@@ -120,12 +120,11 @@ export function ReceiptHistory({ onViewReceipt }: { onViewReceipt: (id: number) 
   const [page, setPage] = useState(1)
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all")
 
-  const fetchReceipts = async (searchQuery?: string, status?: StatusFilter) => {
+  const fetchReceipts = async (searchQuery?: string) => {
     setLoading(true)
     try {
       const params: Record<string, string> = {}
       if (searchQuery) params.search = searchQuery
-      if (status && status !== "all") params.status = status
       const data = await apiGetReceipts(Object.keys(params).length > 0 ? params : undefined)
       setReceipts(data)
     } catch (err) {
@@ -136,12 +135,12 @@ export function ReceiptHistory({ onViewReceipt }: { onViewReceipt: (id: number) 
   }
 
   useEffect(() => {
-    fetchReceipts(search || undefined, statusFilter)
-  }, [statusFilter])
+    fetchReceipts(search || undefined)
+  }, [])
 
   const handleSearch = () => {
     setPage(1)
-    fetchReceipts(search || undefined, statusFilter)
+    fetchReceipts(search || undefined)
   }
 
   const handleDelete = async (id: number) => {
@@ -171,8 +170,11 @@ export function ReceiptHistory({ onViewReceipt }: { onViewReceipt: (id: number) 
     }
   }
 
-  const totalPages = Math.max(1, Math.ceil(receipts.length / PAGE_SIZE))
-  const pagedReceipts = receipts.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+  const filteredReceipts = statusFilter === "all"
+    ? receipts
+    : receipts.filter((r) => r.status === statusFilter)
+  const totalPages = Math.max(1, Math.ceil(filteredReceipts.length / PAGE_SIZE))
+  const pagedReceipts = filteredReceipts.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
   if (loading) {
     return (
@@ -223,7 +225,7 @@ export function ReceiptHistory({ onViewReceipt }: { onViewReceipt: (id: number) 
               className="h-9 w-64 rounded-lg border border-input bg-background pl-9 pr-8 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
             />
             {search && (
-              <button onClick={() => { setSearch(""); fetchReceipts(undefined, statusFilter) }} className="absolute right-2 top-1/2 -translate-y-1/2">
+              <button onClick={() => { setSearch(""); fetchReceipts(undefined) }} className="absolute right-2 top-1/2 -translate-y-1/2">
                 <X className="h-4 w-4 text-muted-foreground" />
               </button>
             )}
@@ -249,11 +251,11 @@ export function ReceiptHistory({ onViewReceipt }: { onViewReceipt: (id: number) 
         </div>
       </div>
 
-      {receipts.length === 0 ? (
+      {filteredReceipts.length === 0 ? (
         <div className="text-center py-16 text-muted-foreground">
           <Receipt className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50" />
-          <p className="text-lg font-medium">Chưa có hóa đơn nào</p>
-          <p className="text-sm mt-1">Hãy tải hóa đơn đầu tiên từ trang Tải hóa đơn</p>
+          <p className="text-lg font-medium">{statusFilter === "all" ? "Chưa có hóa đơn nào" : `Không có hóa đơn "${statusFilter}"`}</p>
+          <p className="text-sm mt-1">{statusFilter === "all" ? "Hãy tải hóa đơn đầu tiên từ trang Tải hóa đơn" : "Thử chọn bộ lọc khác"}</p>
         </div>
       ) : viewMode === "grid" ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
@@ -313,7 +315,7 @@ export function ReceiptHistory({ onViewReceipt }: { onViewReceipt: (id: number) 
       {totalPages > 1 && (
         <div className="flex items-center justify-between pt-2">
           <p className="text-sm text-muted-foreground">
-            Hiển thị {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, receipts.length)} / {receipts.length} hóa đơn
+            Hiển thị {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, filteredReceipts.length)} / {filteredReceipts.length} hóa đơn
           </p>
           <div className="flex items-center gap-1">
             <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} className="p-2 rounded-lg border border-border disabled:opacity-30 hover:bg-muted">
