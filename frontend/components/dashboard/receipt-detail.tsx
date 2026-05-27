@@ -153,7 +153,6 @@ export function ReceiptDetail({ receiptId, onBack }: { receiptId: number | null;
       })
       setReceipt(updated)
       setEditItems(updated.items || [])
-      setEditing(false)
     } catch (err) {
       console.error(err)
     } finally {
@@ -161,18 +160,6 @@ export function ReceiptDetail({ receiptId, onBack }: { receiptId: number | null;
     }
   }
 
-  const handleCancelEdit = () => {
-    if (receipt) {
-      setSupplier(receipt.supplier_name || "")
-      setDate(receipt.receipt_date || "")
-      setCategoryId(receipt.category_id)
-      setStatus(receipt.status)
-      setTotal(receipt.total_amount)
-      setNote(receipt.note || "")
-      setEditItems(receipt.items || [])
-    }
-    setEditing(false)
-  }
 
   const updateItem = (id: number, field: keyof LineItem, value: string | number) => {
     setEditItems((prev) =>
