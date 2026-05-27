@@ -12,12 +12,15 @@ from app.config import GEMINI_API_KEY, GEMINI_MODEL
 logger = logging.getLogger(__name__)
 
 _client: genai.Client | None = None
+_logged_no_key = False
 
 
 def _get_client() -> genai.Client | None:
-    global _client
+    global _client, _logged_no_key
     if not GEMINI_API_KEY:
-        logger.warning("GEMINI_API_KEY not set — Gemini features disabled")
+        if not _logged_no_key:
+            logger.warning("GEMINI_API_KEY not set — Gemini features disabled")
+            _logged_no_key = True
         return None
     if _client is None:
         _client = genai.Client(api_key=GEMINI_API_KEY)
