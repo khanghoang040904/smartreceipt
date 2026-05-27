@@ -19,7 +19,7 @@ import {
   FileText,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { apiGetReceipt, apiUpdateReceipt, apiDeleteReceipt, apiGetCategories, getImageUrl } from "@/lib/api"
+import { apiGetReceipt, apiUpdateReceipt, apiDeleteReceipt, apiGetCategories, apiCreateCategory, getImageUrl } from "@/lib/api"
 
 type Category = string
 type Status = "Đã duyệt" | "Chờ duyệt" | "Từ chối"
@@ -91,13 +91,15 @@ export function ReceiptDetail({ receiptId, onBack }: { receiptId: number | null;
   const [receipt, setReceipt] = useState<ReceiptData | null>(null)
   const [categories, setCategories] = useState<CategoryOption[]>([])
   const [loading, setLoading] = useState(true)
-  const [editing, setEditing] = useState(false)
+  const [editing, setEditing] = useState(true)
   const [saving, setSaving] = useState(false)
   const [zoom, setZoom] = useState(1)
 
   const [supplier, setSupplier] = useState("")
   const [date, setDate] = useState("")
   const [categoryId, setCategoryId] = useState<number | null>(null)
+  const [customCategory, setCustomCategory] = useState("")
+  const [showNewCategory, setShowNewCategory] = useState(false)
   const [status, setStatus] = useState<string>("Chờ duyệt")
   const [total, setTotal] = useState(0)
   const [note, setNote] = useState("")
@@ -151,7 +153,6 @@ export function ReceiptDetail({ receiptId, onBack }: { receiptId: number | null;
       })
       setReceipt(updated)
       setEditItems(updated.items || [])
-      setEditing(false)
     } catch (err) {
       console.error(err)
     } finally {
@@ -159,18 +160,6 @@ export function ReceiptDetail({ receiptId, onBack }: { receiptId: number | null;
     }
   }
 
-  const handleCancelEdit = () => {
-    if (receipt) {
-      setSupplier(receipt.supplier_name || "")
-      setDate(receipt.receipt_date || "")
-      setCategoryId(receipt.category_id)
-      setStatus(receipt.status)
-      setTotal(receipt.total_amount)
-      setNote(receipt.note || "")
-      setEditItems(receipt.items || [])
-    }
-    setEditing(false)
-  }
 
   const updateItem = (id: number, field: keyof LineItem, value: string | number) => {
     setEditItems((prev) =>
@@ -247,26 +236,14 @@ export function ReceiptDetail({ receiptId, onBack }: { receiptId: number | null;
           </span>
         </div>
         <div className="flex gap-2">
-          {editing ? (
-            <>
-              <button onClick={handleCancelEdit} className="px-3 py-1.5 rounded-lg border border-border text-sm hover:bg-muted">Hủy</button>
-              <button onClick={handleSave} disabled={saving} className="px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-sm hover:bg-primary/90 disabled:opacity-50 flex items-center gap-1.5">
-                {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
-                Lưu
-              </button>
-            </>
-          ) : (
-            <>
-              <button onClick={() => setEditing(true)} className="px-3 py-1.5 rounded-lg border border-border text-sm hover:bg-muted flex items-center gap-1.5">
-                <Pencil className="h-3.5 w-3.5" />
-                Chỉnh sửa
-              </button>
-              <button onClick={handleDelete} className="px-3 py-1.5 rounded-lg border border-red-200 text-red-600 text-sm hover:bg-red-50 flex items-center gap-1.5">
-                <Trash2 className="h-3.5 w-3.5" />
-                Xóa
-              </button>
-            </>
-          )}
+          <button onClick={handleSave} disabled={saving} className="px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-sm hover:bg-primary/90 disabled:opacity-50 flex items-center gap-1.5">
+            {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+            Lưu
+          </button>
+          <button onClick={handleDelete} className="px-3 py-1.5 rounded-lg border border-red-200 text-red-600 text-sm hover:bg-red-50 flex items-center gap-1.5">
+            <Trash2 className="h-3.5 w-3.5" />
+            Xóa
+          </button>
         </div>
       </div>
 
@@ -307,10 +284,32 @@ export function ReceiptDetail({ receiptId, onBack }: { receiptId: number | null;
               </Field>
               <Field label="Danh mục" icon={Tag}>
                 {editing ? (
-                  <select value={categoryId ?? ""} onChange={(e) => setCategoryId(e.target.value ? Number(e.target.value) : null)} className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm">
-                    <option value="">-- Chọn danh mục --</option>
-                    {categories.map((c) => (<option key={c.id} value={c.id}>{c.name}</option>))}
-                  </select>
+                  <div className="space-y-2">
+                    <select value={showNewCategory ? "__new__" : (categoryId ?? "")} onChange={(e) => { const v = e.target.value; if (v === "__new__") { setShowNewCategory(true); setCustomCategory(""); } else { setShowNewCategory(false); setCategoryId(v ? Number(v) : null); } }} className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm">
+                      <option value="">-- Chọn danh mục --</option>
+                      {categories.map((c) => (<option key={c.id} value={c.id}>{c.name}</option>))}
+                      <option value="__new__">+ Tạo danh mục mới</option>
+                    </select>
+                    {showNewCategory && (
+                      <div className="flex gap-2">
+                        <input type="text" value={customCategory} onChange={(e) => setCustomCategory(e.target.value)} placeholder="Nhập tên danh mục mới" className="flex-1 rounded-lg border border-input bg-background px-3 py-2 text-sm" />
+                        <button
+                          disabled={!customCategory.trim()}
+                          onClick={async () => {
+                            if (!customCategory.trim()) return
+                            try {
+                              const created = await apiCreateCategory(customCategory.trim())
+                              setCategories((prev) => [...prev, { id: created.id, name: created.name }])
+                              setCategoryId(created.id)
+                              setCustomCategory("")
+                              setShowNewCategory(false)
+                            } catch {}
+                          }}
+                          className="rounded-lg bg-primary px-3 py-2 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+                        >Tạo</button>
+                      </div>
+                    )}
+                  </div>
                 ) : (
                   <p className="text-sm font-medium">{receipt.category_name || "—"}</p>
                 )}
