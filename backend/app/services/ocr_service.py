@@ -1,7 +1,14 @@
+from __future__ import annotations
+
+import logging
 import re
 import unicodedata
 
 import easyocr
+
+from app.services.gemini_service import is_gemini_available, parse_receipt_image, parse_receipt_text
+
+logger = logging.getLogger(__name__)
 
 reader = None
 
@@ -107,6 +114,37 @@ def extract_text(image_path: str) -> str:
     r = get_reader()
     results = r.readtext(image_path, detail=0)
     return "\n".join(results)
+
+
+def process_receipt(image_path: str) -> dict:
+    """Extract and parse receipt using Gemini Vision if available, else EasyOCR + regex."""
+    if is_gemini_available():
+        gemini_result = parse_receipt_image(image_path)
+        if gemini_result and _is_valid_gemini_result(gemini_result):
+            raw_text = extract_text(image_path)
+            gemini_result["raw_text"] = raw_text
+            logger.info("Receipt parsed via Gemini Vision")
+            return gemini_result
+
+    raw_text = extract_text(image_path)
+
+    if is_gemini_available():
+        gemini_result = parse_receipt_text(raw_text)
+        if gemini_result and _is_valid_gemini_result(gemini_result):
+            gemini_result["raw_text"] = raw_text
+            logger.info("Receipt parsed via Gemini text")
+            return gemini_result
+
+    logger.info("Receipt parsed via regex fallback")
+    return parse_receipt(raw_text)
+
+
+def _is_valid_gemini_result(result: dict) -> bool:
+    if result.get("supplier_name") or result.get("total_amount"):
+        return True
+    if result.get("items"):
+        return True
+    return False
 
 
 def parse_receipt(raw_text: str) -> dict:

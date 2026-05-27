@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import re
 from datetime import datetime
 
@@ -8,7 +9,10 @@ from sqlalchemy.orm import Session
 
 from app.models.receipt import Receipt, ReceiptItem
 from app.schemas.chat import ChatRequest, ChatResponse, ChatSource
+from app.services.gemini_service import chat_with_context, is_gemini_available
 from app.services.receipt_index_service import normalize_for_search, receipt_index_service
+
+logger = logging.getLogger(__name__)
 
 
 AGGREGATE_TERMS = {
@@ -110,11 +114,108 @@ def answer_chat(request: ChatRequest, user_id: int, db: Session) -> ChatResponse
     if not message:
         return ChatResponse(answer="Hãy nhập câu hỏi về hóa đơn.", route="empty")
 
+    if is_gemini_available():
+        return _answer_with_gemini(request, user_id, db)
+
+    return _answer_legacy(request, user_id, db)
+
+
+def _answer_with_gemini(request: ChatRequest, user_id: int, db: Session) -> ChatResponse:
+    """RAG + Gemini: retrieve relevant receipts, build context, ask Gemini."""
+    base_query = _base_receipt_query(request, user_id, db)
+    normalized = normalize_for_search(request.message)
+    filtered_query = _apply_month_filter(base_query, normalized)
+
+    search_results = receipt_index_service.search(
+        db=db,
+        user_id=user_id,
+        query=request.message,
+        receipt_ids=request.receipt_ids,
+        category_id=request.category_id,
+        limit=10,
+    )
+
+    all_receipts = filtered_query.all()
+    search_receipt_ids = {r.receipt_id for r in search_results}
+    receipt_map = {r.id: r for r in all_receipts}
+
+    relevant_ids = list(search_receipt_ids | set(receipt_map.keys()))
+    if not relevant_ids:
+        return _empty_response("gemini")
+
+    if search_receipt_ids - set(receipt_map.keys()):
+        extra = (
+            db.query(Receipt)
+            .filter(Receipt.user_id == user_id, Receipt.id.in_(list(search_receipt_ids)))
+            .all()
+        )
+        for r in extra:
+            receipt_map[r.id] = r
+
+    context_parts = []
+    sources = []
+    for result in search_results[:6]:
+        receipt = receipt_map.get(result.receipt_id)
+        if receipt:
+            context_parts.append(_build_receipt_context(receipt))
+            sources.append(_source_from_receipt(receipt, result.chunk_text, result.score))
+
+    for receipt in all_receipts:
+        if receipt.id not in search_receipt_ids:
+            context_parts.append(_build_receipt_context(receipt))
+            if len(sources) < 5:
+                sources.append(_source_from_receipt(receipt, _receipt_summary(receipt), 0.5))
+
+    receipt_context = "\n\n---\n\n".join(context_parts[:15])
+
+    total_count = len(all_receipts)
+    total_sum = sum(r.total_amount or 0 for r in all_receipts)
+    summary_line = f"\nTổng cộng: {total_count} hóa đơn, tổng chi tiêu: {total_sum:,.0f} đ."
+    receipt_context += "\n" + summary_line
+
+    gemini_answer = chat_with_context(request.message, receipt_context)
+
+    if gemini_answer:
+        logger.info("Chat answered via Gemini RAG")
+        return ChatResponse(
+            answer=gemini_answer,
+            route="gemini",
+            sources=sources[:5],
+            confidence=0.9,
+        )
+
+    logger.info("Gemini failed, falling back to legacy chat")
+    return _answer_legacy(request, user_id, db)
+
+
+def _build_receipt_context(receipt: Receipt) -> str:
+    lines = [
+        f"Hóa đơn #{receipt.id}",
+        f"Nhà cung cấp: {receipt.supplier_name or 'Không rõ'}",
+        f"Ngày: {receipt.receipt_date or 'Không rõ'}",
+        f"Tổng tiền: {receipt.total_amount or 0:,.0f} đ",
+        f"Trạng thái: {receipt.status}",
+    ]
+    if receipt.category:
+        lines.append(f"Danh mục: {receipt.category.name}")
+    if receipt.items:
+        lines.append("Sản phẩm:")
+        for item in receipt.items:
+            lines.append(
+                f"  - {item.item_name}: SL {item.quantity}, "
+                f"đơn giá {item.unit_price:,.0f} đ, "
+                f"thành tiền {item.amount:,.0f} đ"
+            )
+    return "\n".join(lines)
+
+
+def _answer_legacy(request: ChatRequest, user_id: int, db: Session) -> ChatResponse:
+    """Original keyword/intent-based chat logic."""
     item_response = _answer_item_question(request, user_id, db)
     if item_response is not None:
         return item_response
 
-    route = _choose_route(message)
+    route = _choose_route(request.message)
     if route == "sql":
         return _answer_sql(request, user_id, db)
     return _answer_hybrid(request, user_id, db)
