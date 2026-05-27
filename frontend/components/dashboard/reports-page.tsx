@@ -25,6 +25,7 @@ import {
   YAxis,
 } from "recharts"
 import { apiGetDashboard, apiGetReceipts, apiExportCSV } from "@/lib/api"
+import { AnimatedSection } from "@/components/ui/animated-section"
 
 const formatCurrency = (value: number) =>
   new Intl.NumberFormat("vi-VN").format(value) + " đ"
@@ -144,19 +145,24 @@ export function ReportsPage() {
 
       {/* Summary cards */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card className="border-border bg-card shadow-sm">
+        <AnimatedSection delay={0}>
+        <Card className="border-border bg-card shadow-sm hover:shadow-md transition-shadow">
           <CardContent className="p-5">
             <p className="text-sm text-muted-foreground">Tổng hóa đơn</p>
             <p className="mt-1 text-2xl font-bold">{stats?.total_receipts?.toLocaleString("vi-VN") ?? "0"}</p>
           </CardContent>
         </Card>
-        <Card className="border-border bg-card shadow-sm">
+        </AnimatedSection>
+        <AnimatedSection delay={100}>
+        <Card className="border-border bg-card shadow-sm hover:shadow-md transition-shadow">
           <CardContent className="p-5">
             <p className="text-sm text-muted-foreground">Tổng chi tiêu</p>
             <p className="mt-1 text-2xl font-bold text-indigo-600">{formatCurrency(stats?.total_spending ?? 0)}</p>
           </CardContent>
         </Card>
-        <Card className="border-border bg-card shadow-sm">
+        </AnimatedSection>
+        <AnimatedSection delay={200}>
+        <Card className="border-border bg-card shadow-sm hover:shadow-md transition-shadow">
           <CardContent className="p-5">
             <p className="text-sm text-muted-foreground">Tháng này</p>
             <p className="mt-1 text-2xl font-bold">{formatCurrency(stats?.this_month_spending ?? 0)}</p>
@@ -174,12 +180,15 @@ export function ReportsPage() {
             )}
           </CardContent>
         </Card>
-        <Card className="border-border bg-card shadow-sm">
+        </AnimatedSection>
+        <AnimatedSection delay={300}>
+        <Card className="border-border bg-card shadow-sm hover:shadow-md transition-shadow">
           <CardContent className="p-5">
             <p className="text-sm text-muted-foreground">Trung bình/hóa đơn</p>
             <p className="mt-1 text-2xl font-bold">{formatCurrency(stats?.avg_per_receipt ?? 0)}</p>
           </CardContent>
         </Card>
+        </AnimatedSection>
       </div>
 
       {/* Status summary */}
@@ -206,6 +215,7 @@ export function ReportsPage() {
 
       {/* Charts */}
       <div className="grid gap-6 lg:grid-cols-2">
+        <AnimatedSection delay={100} direction="left">
         <Card className="border-border bg-card shadow-sm">
           <CardHeader>
             <CardTitle className="text-base font-semibold">Chi tiêu theo danh mục</CardTitle>
@@ -227,7 +237,9 @@ export function ReportsPage() {
             )}
           </CardContent>
         </Card>
+        </AnimatedSection>
 
+        <AnimatedSection delay={200} direction="right">
         <Card className="border-border bg-card shadow-sm">
           <CardHeader>
             <CardTitle className="text-base font-semibold">Chi tiêu theo tháng</CardTitle>
@@ -244,10 +256,12 @@ export function ReportsPage() {
             </ResponsiveContainer>
           </CardContent>
         </Card>
+        </AnimatedSection>
       </div>
 
       {/* Top suppliers */}
       {topSuppliersData.length > 0 && (
+        <AnimatedSection delay={100}>
         <Card className="border-border bg-card shadow-sm">
           <CardHeader>
             <CardTitle className="text-base font-semibold">Top nhà cung cấp</CardTitle>
@@ -272,6 +286,7 @@ export function ReportsPage() {
             </div>
           </CardContent>
         </Card>
+        </AnimatedSection>
       )}
     </div>
   )

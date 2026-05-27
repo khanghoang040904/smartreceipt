@@ -225,7 +225,7 @@ export function ReceiptDetail({ receiptId, onBack }: { receiptId: number | null;
   const totalsMatch = hasItems && totalDiff < 1
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
 
       {/* Header */}
       <div className="flex items-center justify-between">

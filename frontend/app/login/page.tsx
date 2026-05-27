@@ -27,7 +27,7 @@ export default function LoginPage() {
       const data = await apiLogin(email, password);
       localStorage.setItem("token", data.access_token);
       localStorage.setItem("user", JSON.stringify(data.user));
-      router.push("/");
+      router.push("/dashboard");
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Không đăng nhập được");
     } finally {
@@ -43,7 +43,7 @@ export default function LoginPage() {
         <div className="absolute bottom-0 left-0 w-96 h-96 bg-primary/5 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2" />
       </div>
 
-      <div className="w-full max-w-md">
+      <div className="w-full max-w-md animate-in fade-in slide-in-from-bottom-6 duration-700">
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-3 mb-3">
             <div className="w-12 h-12 bg-primary rounded-xl flex items-center justify-center shadow-lg shadow-primary/25">
@@ -54,7 +54,7 @@ export default function LoginPage() {
           <p className="text-muted-foreground">Quản lý chi tiêu từ hóa đơn thông minh</p>
         </div>
 
-        <div className="bg-card rounded-2xl shadow-xl shadow-black/5 border border-border p-8">
+        <div className="bg-card rounded-2xl shadow-xl shadow-black/5 border border-border p-8 transition-shadow hover:shadow-2xl">
           <div className="mb-6">
             <h2 className="text-xl font-semibold text-card-foreground">Đăng nhập</h2>
             <p className="text-sm text-muted-foreground mt-1">Tiếp tục quản lý hóa đơn của bạn</p>

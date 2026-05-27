@@ -38,7 +38,7 @@ def normalize_for_search(text: str | None) -> str:
 def build_receipt_chunks(receipt: Receipt) -> list[ReceiptChunk]:
     category_name = receipt.category.name if receipt.category else ""
     item_lines = [
-        f"{item.item_name}: quantity {item.quantity}, unit price {item.unit_price}, amount {item.amount}"
+        f"{item.item_name}: số lượng {item.quantity}, đơn giá {item.unit_price:,.0f} đ, thành tiền {item.amount:,.0f} đ"
         for item in receipt.items
     ]
     common_metadata = {
@@ -52,12 +52,12 @@ def build_receipt_chunks(receipt: Receipt) -> list[ReceiptChunk]:
         "category": category_name,
     }
     summary = "\n".join([
-        f"Receipt #{receipt.id}",
-        f"Supplier: {receipt.supplier_name or 'Unknown'}",
-        f"Date: {receipt.receipt_date or 'Unknown'}",
-        f"Total amount: {receipt.total_amount or 0} VND",
-        f"Category: {category_name or 'Uncategorized'}",
-        f"Status: {receipt.status}",
+        f"Hóa đơn #{receipt.id}",
+        f"Nhà cung cấp: {receipt.supplier_name or 'Không rõ'}",
+        f"Ngày: {receipt.receipt_date or 'Không rõ'}",
+        f"Tổng tiền: {receipt.total_amount or 0:,.0f} đ",
+        f"Danh mục: {category_name or 'Chưa phân loại'}",
+        f"Trạng thái: {receipt.status}",
     ])
     chunks = [
         ReceiptChunk(
@@ -71,7 +71,7 @@ def build_receipt_chunks(receipt: Receipt) -> list[ReceiptChunk]:
         chunks.append(
             ReceiptChunk(
                 id=f"{receipt.user_id}:{receipt.id}:items",
-                document="Items:\n" + "\n".join(item_lines),
+                document="Sản phẩm:\n" + "\n".join(item_lines),
                 metadata={**common_metadata, "chunk_type": "items"},
             )
         )

@@ -41,7 +41,7 @@ export default function RegisterPage() {
       const data = await apiRegister(email, fullName, password);
       localStorage.setItem("token", data.access_token);
       localStorage.setItem("user", JSON.stringify(data.user));
-      router.push("/");
+      router.push("/dashboard");
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Không đăng ký được tài khoản");
     } finally {
@@ -57,7 +57,7 @@ export default function RegisterPage() {
         <div className="absolute bottom-0 right-0 w-96 h-96 bg-primary/5 rounded-full blur-3xl translate-y-1/2 translate-x-1/2" />
       </div>
 
-      <div className="w-full max-w-md">
+      <div className="w-full max-w-md animate-in fade-in slide-in-from-bottom-6 duration-700">
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-3 mb-3">
             <div className="w-12 h-12 bg-primary rounded-xl flex items-center justify-center shadow-lg shadow-primary/25">

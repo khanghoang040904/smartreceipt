@@ -1,0 +1,96 @@
+{
+  "retrieval": {
+    "average_score": 0.424,
+    "details": [
+      {
+        "question": "Tổng chi tiêu bao nhiêu?",
+        "retrieved_count": 6,
+        "above_threshold": 3,
+        "avg_score": 0.3,
+        "max_score": 0.4,
+        "min_score": 0.2
+      },
+      {
+        "question": "Hóa đơn nào có tổng tiền cao nhất?",
+        "retrieved_count": 6,
+        "above_threshold": 6,
+        "avg_score": 0.521,
+        "max_score": 0.625,
+        "min_score": 0.375
+      },
+      {
+        "question": "Có bao nhiêu hóa đơn?",
+        "retrieved_count": 6,
+        "above_threshold": 6,
+        "avg_score": 0.533,
+        "max_score": 0.6,
+        "min_score": 0.4
+      },
+      {
+        "question": "Liệt kê nhà cung cấp của các hóa đơn",
+        "retrieved_count": 6,
+        "above_threshold": 3,
+        "avg_score": 0.296,
+        "max_score": 0.444,
+        "min_score": 0.222
+      },
+      {
+        "question": "Hóa đơn nào mua cà phê?",
+        "retrieved_count": 6,
+        "above_threshold": 6,
+        "avg_score": 0.472,
+        "max_score": 0.667,
+        "min_score": 0.333
+      }
+    ]
+  },
+  "generation": {
+    "average_keyword_match": 0.47,
+    "details": [
+      {
+        "question": "Tổng chi tiêu bao nhiêu?",
+        "answer": "Không đủ dữ liệu trong các hóa đơn đã lưu để trả lời câu hỏi này.",
+        "keyword_match": 0.33,
+        "has_sources": false,
+        "source_count": 0,
+        "confidence": 0.0
+      },
+      {
+        "question": "Hóa đơn nào có tổng tiền cao nhất?",
+        "answer": "Hóa đơn #3 của DIEN MAY XANH có tổng tiền cao nhất là 8.260.000 đ.",
+        "keyword_match": 1.0,
+        "has_sources": true,
+        "source_count": 5,
+        "confidence": 0.9
+      },
+      {
+        "question": "Có bao nhiêu hóa đơn?",
+        "answer": "Không đủ dữ liệu trong các hóa đơn đã lưu để trả lời câu hỏi này.",
+        "keyword_match": 1.0,
+        "has_sources": false,
+        "source_count": 0,
+        "confidence": 0.0
+      },
+      {
+        "question": "Liệt kê nhà cung cấp của các hóa đơn",
+        "answer": "Không đủ dữ liệu trong các hóa đơn đã lưu để trả lời câu hỏi này.",
+        "keyword_match": 0.0,
+        "has_sources": false,
+        "source_count": 0,
+        "confidence": 0.0
+      },
+      {
+        "question": "Hóa đơn nào mua cà phê?",
+        "answer": "Không đủ dữ liệu trong các hóa đơn đã lưu để trả lời câu hỏi này.",
+        "keyword_match": 0.0,
+        "has_sources": false,
+        "source_count": 0,
+        "confidence": 0.0
+      }
+    ]
+  },
+  "ragas": "Skipped or failed",
+  "recommendations": [
+    "Generation keyword match is low. Consider: (1) Improving the system prompt for Gemini, (2) Adding few-shot examples in the chat prompt."
+  ]
+}
