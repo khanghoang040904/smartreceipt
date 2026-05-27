@@ -107,7 +107,7 @@ export function DashboardLayout({
           isCollapsed ? "pl-16" : "pl-64"
         )}
       >
-        <div className="p-6">
+        <div className="p-6 animate-in fade-in duration-300">
           {renderContent()}
         </div>
       </main>

@@ -71,7 +71,7 @@ function ReceiptCard({ item, onView, onDelete, onApprove, onReject }: { item: Re
           onView(item.id)
         }
       }}
-      className="group flex cursor-pointer flex-col overflow-hidden rounded-xl border border-border bg-card shadow-sm transition-shadow duration-200 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-ring"
+      className="group flex cursor-pointer flex-col overflow-hidden rounded-xl border border-border bg-card shadow-sm transition-all duration-200 hover:shadow-md hover:-translate-y-1 focus:outline-none focus:ring-2 focus:ring-ring"
     >
       <div className="h-32 bg-gradient-to-br from-indigo-50 to-blue-100 flex items-center justify-center relative">
         <Receipt className="h-12 w-12 text-indigo-300" />
