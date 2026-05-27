@@ -14,5 +14,8 @@ VECTORSTORE_DIR = os.getenv(
 )
 RAG_EMBEDDING_MODEL = os.getenv("RAG_EMBEDDING_MODEL", "intfloat/multilingual-e5-small")
 
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
+
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 os.makedirs(VECTORSTORE_DIR, exist_ok=True)

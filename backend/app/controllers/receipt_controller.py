@@ -12,7 +12,7 @@ from app.models.receipt import Receipt, ReceiptItem
 from app.models.category import Category
 from app.schemas.receipt import ReceiptResponse, ReceiptUpdate, ReceiptItemResponse
 from app.services.auth_service import get_current_user
-from app.services.ocr_service import extract_text, parse_receipt
+from app.services.ocr_service import process_receipt
 from app.services.receipt_index_service import receipt_index_service
 
 router = APIRouter(prefix="/api/receipts", tags=["Receipts"])
@@ -63,8 +63,7 @@ async def upload_receipt(
     with open(filepath, "wb") as f:
         f.write(contents)
 
-    raw_text = extract_text(filepath)
-    parsed = parse_receipt(raw_text)
+    parsed = process_receipt(filepath)
 
     receipt = Receipt(
         user_id=user.id,
