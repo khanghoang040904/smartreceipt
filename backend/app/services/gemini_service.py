@@ -17,9 +17,11 @@ _client: genai.Client | None = None
 def _get_client() -> genai.Client | None:
     global _client
     if not GEMINI_API_KEY:
+        logger.warning("GEMINI_API_KEY not set — Gemini features disabled")
         return None
     if _client is None:
         _client = genai.Client(api_key=GEMINI_API_KEY)
+        logger.info("Gemini client initialized with model=%s", GEMINI_MODEL)
     return _client
 
 
