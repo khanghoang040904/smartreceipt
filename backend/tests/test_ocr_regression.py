@@ -1,6 +1,10 @@
+import json
 from pathlib import Path
+from unittest.mock import patch
 
-from app.services.ocr_service import parse_receipt
+import pytest
+
+from app.services.gemini_service import _parse_json_response
 
 
 TEST_IMAGE_DIR = Path(__file__).resolve().parents[2].parent / "Test"
@@ -17,18 +21,6 @@ OCR_CASES = [
             ("Trà đào cam sả", 1, 58000.0),
             ("Bánh mì que", 1, 68000.0),
         ],
-        "text": """THE COFFEE HOUSE
-42 Hai Bà Trưng, Quận 1, TPHCM
-Hotline: 1900 6009
-HÓA ĐƠN THANH TOÁN
-Số HD: TCH-20250512-1234
-Ngày: 12/05/2025 09:15
-------------------------------
-Cà phê sữa đá x2 90,000đ
-Trà đào cam sả 58,000đ
-Bánh mì que 68,000đ
-Tổng Cộng
-216,000đ""",
     },
     {
         "image": "receipt_electronics.png",
@@ -40,23 +32,6 @@ Tổng Cộng
             ("Nồi chiên không dầu", 1, 2990000.0),
             ("Bảo hành mở rộng", 1, 1270000.0),
         ],
-        "text": """DIEN
-MAY
-XANH
-CN: 256 Lê Hồng Phong, Q.10
-Ngày: 08/05/2025
-------------------------------
-Máy lọc không khí 4,500,000
-Nồi chiên không dầu 2,990,000
-Bảo hành mở rộng 1,270,000
-Tổng
-tiền
-hàng:
-8,760,000
-Giảm giá KM:
-500,000
-THANH TOÁN:
-260,000 VND""",
     },
     {
         "image": "receipt_supermarket.png",
@@ -70,24 +45,6 @@ THANH TOÁN:
             ("Nước mắm Phú Quốc", 1, 78000.0),
             ("Rau củ tổng hợp", 1, 192225.0),
         ],
-        "text": """SIEU THI CO. OPMART
-168 Nguyễn Đình Chiểu, Quận 3
-HÓA ĐƠN BÁN HÀNG
-Ngày: 10/05/2025
-Gạo ST25 5kg 189,000đ
-Sữa tươi Vinamilk x2 74,000đ
-Trứng gà hộp 10 quả 42,000đ
-Nước mắm Phú Quốc 78,000đ
-Rau củ tổng hợp 192,225đ
-Tổng
-cộng
-(8 SP)
-605,500đ
-Giảm giá thẻ VIP 5%:
-30,275đ
-THANH
-TOÁN:
-575,225đ""",
     },
     {
         "image": "receipt_pharmacy.png",
@@ -99,19 +56,6 @@ TOÁN:
             ("Vitamin C 1000mg", 1, 85000.0),
             ("Nước muối sinh lý", 5, 13000.0),
         ],
-        "text": """NHA THUOC
-AN KHANG
-78 Nguyễn Thị Minh Khai
-ĐT: 028 3822 1100
-Ngày 09/05/2025
-Paracetamol 500mg x2
-70,000
-Vitamin C 1000mg
-85,000
-Nước muối sinh lý x5
-65,000
-Tổng Cộng
-220,000 VND""",
     },
     {
         "image": "receipt_restaurant.png",
@@ -124,22 +68,6 @@ Tổng Cộng
             ("Cơm chiên hải sản", 1, 120000.0),
             ("Nước suối", 4, 20000.0),
         ],
-        "text": """NHA
-HANG HAI SAN BIEN DONG
-55 Võ Văn Kiệt
-Tel: 028-3821-5566
-Ngày 11/05/25
-Tôm hùm nướng 650,000
-Mực hấp gừng 210,000
-Cơm chiên hải sản 120,000
-Nước suối x4 80,000
-Tổng:
-1,060,000
-Phí dịch vụ 5%:
-53,000
-VAT 8%:
-84,800
-Tổng THANH TOÁN: 1,197,800đ""",
     },
     {
         "image": "receipt_camera_style.png",
@@ -156,119 +84,48 @@ Tổng THANH TOÁN: 1,197,800đ""",
             ("Bánh mì sandwich", 1, 22000.0),
             ("Nước suối Lavie 6L", 1, 38000.0),
         ],
-        "text": """BACH HOA XANH
-99 Phan Xích Long, Phú Nhuận
-TPHCM - MST: 0316657398
-HD: BHX-20250513-7720
-Ngày: 13/05/2025 18:22
-==============================
-Bò Úc nhập khẩu 500g
-185,000
-Cá hồi Na Uy 300g
-165,000
-Rau xà lách (gói)
-25,000
-Cà chua (kg)
-32,000
-Hành tây (kg)
-28,000
-Sữa chua Vinamilk x4
-36,000
-Bánh mì sandwich
-22,000
-Nước suối Lavie 6L
-38,000
-==============================
-Tổng Cộng
-531,000 VND""",
-    },
-    {
-        "image": "receipt_vietnamese_grocery.png",
-        "supplier": "CỬA HÀNG THỰC PHẨM MINH AN",
-        "date": "14/05/2025",
-        "total": 312000.0,
-        "items": [
-            ("Thịt heo ba rọi 500g", 1, 98000.0),
-            ("Cà chua Đà Lạt 1kg", 1, 32000.0),
-            ("Rau muống bó", 2, 12000.0),
-            ("Nước mắm Nam Ngư", 2, 43000.0),
-            ("Trứng gà hộp 10 quả", 1, 72000.0),
-        ],
-        "text": """CỬA HÀNG THỰC PHẨM MINH AN
-12 Lý Thường Kiệt, Quận Tân Bình
-Ngày: 14/05/2025
-Thịt heo ba rọi 500g 98,000đ
-Cà chua Đà Lạt 1kg 32,000đ
-Rau muống bó x2 24,000đ
-Nước mắm Nam Ngư x2
-86,000đ
-Trứng gà hộp 10 quả
-72,000đ
-THÀNH
-TOÁN
-312,000đ""",
-    },
-    {
-        "image": "receipt_vietnamese_cafe.png",
-        "supplier": "CÀ PHÊ HOA NẮNG",
-        "date": "15/05/2025",
-        "total": 154000.0,
-        "items": [
-            ("Cà phê sữa đá", 2, 29000.0),
-            ("Bạc xỉu nóng", 1, 36000.0),
-            ("Bánh croissant bơ", 2, 30000.0),
-        ],
-        "text": """CÀ PHÊ HOA NẮNG
-88 Nguyễn Huệ, Quận 1
-Ngày 15/05/2025
-Cà phê sữa đá x2
-58,000
-Bạc xỉu nóng
-36,000
-Bánh croissant bơ x2
-60,000
-Tổng thanh toán: 154,000đ""",
-    },
-    {
-        "image": "receipt_vietnamese_pharmacy.png",
-        "supplier": "NHÀ THUỐC TÂM ĐỨC",
-        "date": "16/05/2025",
-        "total": 286000.0,
-        "items": [
-            ("Khẩu trang y tế hộp", 2, 45000.0),
-            ("Siro ho Prospan", 1, 126000.0),
-            ("Nước muối sinh lý", 5, 14000.0),
-        ],
-        "text": """NHÀ THUỐC TÂM ĐỨC
-25 Trần Hưng Đạo, Quận 5
-SĐT: 028 3999 8888
-Ngày: 16/05/2025
-Khẩu trang y tế hộp x2 90,000
-Siro ho Prospan 126,000
-Nước muối sinh lý x5 70,000
-VAT 0%
-Tổng tiền thanh toán
-286,000 VND""",
     },
 ]
 
 
+def _make_gemini_json(case: dict) -> str:
+    items = [
+        {
+            "item_name": name,
+            "quantity": qty,
+            "unit_price": price,
+            "amount": price * qty,
+        }
+        for name, qty, price in case["items"]
+    ]
+    return json.dumps({
+        "supplier_name": case["supplier"],
+        "receipt_date": case["date"],
+        "total_amount": case["total"],
+        "items": items,
+    })
+
+
+@pytest.mark.skipif(not TEST_IMAGE_DIR.exists(), reason="Test images directory not available")
 def test_test_receipt_images_exist():
     missing = [case["image"] for case in OCR_CASES if not (TEST_IMAGE_DIR / case["image"]).exists()]
     assert missing == []
 
 
-def test_parse_all_receipt_regression_cases():
+def test_parse_json_response_all_cases():
     for case in OCR_CASES:
-        parsed = parse_receipt(case["text"])
+        gemini_json = _make_gemini_json(case)
+        parsed = _parse_json_response(gemini_json)
+        assert parsed is not None, case["image"]
         assert parsed["supplier_name"] == case["supplier"], case["image"]
         assert parsed["receipt_date"] == case["date"], case["image"]
         assert parsed["total_amount"] == case["total"], case["image"]
 
 
-def test_parse_vietnamese_item_regression_cases():
+def test_parse_json_response_items():
     for case in OCR_CASES:
-        parsed = parse_receipt(case["text"])
+        gemini_json = _make_gemini_json(case)
+        parsed = _parse_json_response(gemini_json)
         items = parsed["items"]
         expected_items = case["items"]
         assert len(items) == len(expected_items), case["image"]

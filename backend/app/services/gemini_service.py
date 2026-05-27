@@ -23,11 +23,7 @@ def _get_client() -> genai.Client | None:
     return _client
 
 
-def is_gemini_available() -> bool:
-    return bool(GEMINI_API_KEY)
-
-
-def parse_receipt_image(image_path: str) -> dict | None:
+def parse_receipt_image(image_path: str, mime_type: str = "image/png") -> dict | None:
     """Use Gemini Vision to parse a receipt image into structured data."""
     client = _get_client()
     if client is None:
@@ -67,7 +63,7 @@ Quy tắc:
             contents=[
                 types.Content(
                     parts=[
-                        types.Part.from_bytes(data=image_bytes, mime_type="image/png"),
+                        types.Part.from_bytes(data=image_bytes, mime_type=mime_type),
                         types.Part.from_text(text=prompt),
                     ]
                 )
@@ -128,7 +124,6 @@ OCR Text:
 def chat_with_context(
     user_message: str,
     receipt_context: str,
-    chat_history: list[dict] | None = None,
 ) -> str | None:
     """Use Gemini to answer questions about receipts with RAG context."""
     client = _get_client()
