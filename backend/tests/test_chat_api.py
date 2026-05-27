@@ -1,8 +1,11 @@
+from unittest.mock import patch
+
 from app.models.receipt import Receipt, ReceiptItem
 from app.models.user import User
 
 
-def test_chat_api_returns_receipt_total(client, auth_headers, db_session):
+@patch("app.services.chat_service.chat_with_context")
+def test_chat_api_returns_gemini_answer(mock_gemini, client, auth_headers, db_session):
     user = db_session.query(User).filter(User.email == "testuser@test.com").first()
     receipt = Receipt(
         user_id=user.id,
@@ -17,6 +20,8 @@ def test_chat_api_returns_receipt_total(client, auth_headers, db_session):
     db_session.commit()
     db_session.refresh(receipt)
 
+    mock_gemini.return_value = "Tổng tiền hóa đơn Bach Hoa Xanh là 531.000 đ."
+
     response = client.post(
         "/api/chat",
         json={"message": "Tong tien hoa don Bach Hoa Xanh la bao nhieu?"},
@@ -25,13 +30,13 @@ def test_chat_api_returns_receipt_total(client, auth_headers, db_session):
 
     assert response.status_code == 200
     data = response.json()
-    assert data["route"] == "sql"
-    assert data["sql_result"]["receipt_id"] == receipt.id
-    assert data["sql_result"]["total_amount"] == 531000
+    assert data["route"] == "gemini"
+    assert "531" in data["answer"]
     assert data["sources"][0]["receipt_id"] == receipt.id
 
 
-def test_chat_api_returns_item_price(client, auth_headers, db_session):
+@patch("app.services.chat_service.chat_with_context")
+def test_chat_api_returns_item_info(mock_gemini, client, auth_headers, db_session):
     user = db_session.query(User).filter(User.email == "testuser@test.com").first()
     receipt = Receipt(
         user_id=user.id,
@@ -54,6 +59,8 @@ def test_chat_api_returns_item_price(client, auth_headers, db_session):
     ))
     db_session.commit()
 
+    mock_gemini.return_value = "Cà chua (kg) có giá 32.000 đ tại BACH HOA XANH."
+
     response = client.post(
         "/api/chat",
         json={"message": "Giá Ca chua (kg) là bao nhiêu?"},
@@ -62,6 +69,5 @@ def test_chat_api_returns_item_price(client, auth_headers, db_session):
 
     assert response.status_code == 200
     data = response.json()
-    assert data["route"] == "item"
-    assert data["sql_result"]["items"][0]["receipt_id"] == receipt.id
-    assert data["sql_result"]["items"][0]["unit_price"] == 32000
+    assert data["route"] == "gemini"
+    assert "32.000" in data["answer"]

@@ -1,35 +1,42 @@
-from app.services.ocr_service import parse_receipt
+from unittest.mock import patch
+
+from app.services.gemini_service import _parse_json_response
 
 
-SAMPLE_TEXT = """SIÊU THỊ COOP MART
-274 Cộng Hòa, Phường 13, Tân Bình, TP.HCM
-Tel: (028) 3948 8888
-==============================
-Ngày: 12/12/2024   Giờ: 14:32
-Hóa đơn số: INV-20241212-0087
-------------------------------
-Gạo ST25 (5kg)        1  189000
-Nước mắm Phú Quốc     2  45000
-------------------------------
-Tổng cộng:          732,000
-THÀNH TIỀN:         805,200đ
-------------------------------
-Cảm ơn quý khách!"""
+SAMPLE_GEMINI_RESPONSE = """{
+  "supplier_name": "SIÊU THỊ COOP MART",
+  "receipt_date": "12/12/2024",
+  "total_amount": 805200,
+  "items": [
+    {"item_name": "Gạo ST25 (5kg)", "quantity": 1, "unit_price": 189000, "amount": 189000},
+    {"item_name": "Nước mắm Phú Quốc", "quantity": 2, "unit_price": 45000, "amount": 90000}
+  ]
+}"""
 
 
-# TC13: Parse supplier name from OCR text
-def test_parse_supplier_name():
-    result = parse_receipt(SAMPLE_TEXT)
+def test_parse_json_response_supplier_name():
+    result = _parse_json_response(SAMPLE_GEMINI_RESPONSE)
     assert result["supplier_name"] == "SIÊU THỊ COOP MART"
 
 
-# TC14: Parse date from OCR text
-def test_parse_date():
-    result = parse_receipt(SAMPLE_TEXT)
+def test_parse_json_response_date():
+    result = _parse_json_response(SAMPLE_GEMINI_RESPONSE)
     assert result["receipt_date"] == "12/12/2024"
 
 
-# TC15: Parse total amount from OCR text
-def test_parse_total_amount():
-    result = parse_receipt(SAMPLE_TEXT)
+def test_parse_json_response_total_amount():
+    result = _parse_json_response(SAMPLE_GEMINI_RESPONSE)
     assert result["total_amount"] == 805200.0
+
+
+def test_parse_json_response_handles_markdown_wrapper():
+    wrapped = "```json\n" + SAMPLE_GEMINI_RESPONSE + "\n```"
+    result = _parse_json_response(wrapped)
+    assert result["supplier_name"] == "SIÊU THỊ COOP MART"
+    assert result["total_amount"] == 805200.0
+
+
+def test_parse_json_response_returns_none_for_invalid():
+    assert _parse_json_response("not json at all") is None
+    assert _parse_json_response("") is None
+    assert _parse_json_response(None) is None
