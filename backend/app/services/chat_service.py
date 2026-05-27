@@ -85,10 +85,20 @@ def _answer_with_gemini(request: ChatRequest, user_id: int, db: Session) -> Chat
     gemini_answer = chat_with_context(request.message, receipt_context)
 
     if gemini_answer:
+        mentioned_ids = set()
+        for src in sources:
+            if f"#{src.receipt_id}" in gemini_answer or (src.supplier_name and src.supplier_name in gemini_answer):
+                mentioned_ids.add(src.receipt_id)
+
+        if mentioned_ids:
+            filtered_sources = [s for s in sources if s.receipt_id in mentioned_ids]
+        else:
+            filtered_sources = [s for s in sources if s.score >= 0.5]
+
         return ChatResponse(
             answer=gemini_answer,
             route="gemini",
-            sources=sources[:5],
+            sources=filtered_sources[:5],
             confidence=0.9,
         )
 
