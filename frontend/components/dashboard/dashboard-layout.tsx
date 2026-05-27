@@ -9,9 +9,11 @@ import { ReceiptHistory } from "./receipt-history"
 import { ReceiptDetail } from "./receipt-detail"
 import { ReceiptChat } from "./receipt-chat"
 import { ReportsPage } from "./reports-page"
+import { IntroductionPage } from "./introduction-page"
 import { cn } from "@/lib/utils"
 
 const pageTitles: Record<string, string> = {
+  intro: "Giới thiệu",
   dashboard: "Tổng quan",
   upload: "Tải hóa đơn",
   history: "Lịch sử hóa đơn",
@@ -35,6 +37,7 @@ export function DashboardLayout({
   const [isCollapsed, setIsCollapsed] = useState(false)
   const [currentPage, setCurrentPage] = useState(activeItem)
   const [selectedReceiptId, setSelectedReceiptId] = useState<number | null>(null)
+  const [detailSourcePage, setDetailSourcePage] = useState("history")
   const [userName, setUserName] = useState("Người dùng")
   const [userEmail, setUserEmail] = useState("")
 
@@ -60,12 +63,13 @@ export function DashboardLayout({
   }
 
   const handleViewReceipt = (id: number) => {
+    setDetailSourcePage(currentPage)
     setSelectedReceiptId(id)
     setCurrentPage("detail")
   }
 
   const handleBackFromDetail = () => {
-    setCurrentPage("history")
+    setCurrentPage(detailSourcePage)
     setSelectedReceiptId(null)
   }
 
@@ -76,6 +80,7 @@ export function DashboardLayout({
   }
 
   const renderContent = () => {
+    if (currentPage === "intro") return <IntroductionPage />
     if (currentPage === "upload") return <UploadReceipt />
     if (currentPage === "history") return <ReceiptHistory onViewReceipt={handleViewReceipt} />
     if (currentPage === "chat") return <ReceiptChat onViewReceipt={handleViewReceipt} />
@@ -87,7 +92,7 @@ export function DashboardLayout({
   return (
     <div className="min-h-screen bg-background">
       <Sidebar
-        activeItem={currentPage === "detail" ? "history" : currentPage}
+        activeItem={currentPage === "detail" ? detailSourcePage : currentPage}
         onNavigate={handleNavigate}
         isCollapsed={isCollapsed}
         onToggle={() => setIsCollapsed(!isCollapsed)}
@@ -105,7 +110,7 @@ export function DashboardLayout({
           isCollapsed ? "pl-16" : "pl-64"
         )}
       >
-        <div className="p-6">
+        <div className="p-6 animate-in fade-in duration-300">
           {renderContent()}
         </div>
       </main>

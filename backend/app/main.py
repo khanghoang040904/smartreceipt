@@ -14,8 +14,7 @@ logger = logging.getLogger(__name__)
 Base.metadata.create_all(bind=engine)
 
 _MIGRATIONS = [
-    ("receipts", "vat_amount", "REAL DEFAULT 0.0"),
-    ("receipts", "discount_amount", "REAL DEFAULT 0.0"),
+    ("receipts", "note", "TEXT"),
 ]
 
 with engine.connect() as conn:

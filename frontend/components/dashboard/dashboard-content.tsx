@@ -23,6 +23,7 @@ import {
   YAxis,
 } from "recharts"
 import { apiGetDashboard, apiGetReceipts } from "@/lib/api"
+import { AnimatedSection } from "@/components/ui/animated-section"
 
 const formatCurrency = (value: number) => {
   return new Intl.NumberFormat("vi-VN").format(value) + " đ"
@@ -127,10 +128,11 @@ export function DashboardContent() {
   return (
     <div className="space-y-6">
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {statCards.map((stat) => {
+        {statCards.map((stat, index) => {
           const Icon = stat.icon
           return (
-            <Card key={stat.title} className="border-border bg-card shadow-sm">
+            <AnimatedSection key={stat.title} delay={index * 100}>
+            <Card className="border-border bg-card shadow-sm hover:shadow-md transition-shadow duration-300">
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
@@ -156,11 +158,13 @@ export function DashboardContent() {
                 </div>
               </CardContent>
             </Card>
+            </AnimatedSection>
           )
         })}
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
+        <AnimatedSection delay={100} direction="left">
         <Card className="border-border bg-card shadow-sm">
           <CardHeader>
             <CardTitle className="text-base font-semibold">Chi tiêu theo danh mục</CardTitle>
@@ -183,6 +187,8 @@ export function DashboardContent() {
           </CardContent>
         </Card>
 
+        </AnimatedSection>
+        <AnimatedSection delay={200} direction="right">
         <Card className="border-border bg-card shadow-sm">
           <CardHeader>
             <CardTitle className="text-base font-semibold">Chi tiêu theo tháng</CardTitle>
@@ -199,8 +205,10 @@ export function DashboardContent() {
             </ResponsiveContainer>
           </CardContent>
         </Card>
+        </AnimatedSection>
       </div>
 
+      <AnimatedSection delay={100}>
       <Card className="border-border bg-card shadow-sm">
         <CardHeader>
           <CardTitle className="text-base font-semibold">Hóa đơn gần đây</CardTitle>
@@ -240,6 +248,7 @@ export function DashboardContent() {
           )}
         </CardContent>
       </Card>
+      </AnimatedSection>
     </div>
   )
 }

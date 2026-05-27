@@ -13,8 +13,10 @@ import {
   Tag,
   Building2,
   CheckCircle2,
+  AlertTriangle,
   Loader2,
   PlusCircle,
+  FileText,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { apiGetReceipt, apiUpdateReceipt, apiDeleteReceipt, apiGetCategories, getImageUrl } from "@/lib/api"
@@ -38,6 +40,7 @@ interface ReceiptData {
   category_name: string | null
   status: string
   total_amount: number
+  note: string | null
   created_at: string
   image_path: string
   raw_text: string | null
@@ -97,6 +100,7 @@ export function ReceiptDetail({ receiptId, onBack }: { receiptId: number | null;
   const [categoryId, setCategoryId] = useState<number | null>(null)
   const [status, setStatus] = useState<string>("Chờ duyệt")
   const [total, setTotal] = useState(0)
+  const [note, setNote] = useState("")
   const [editItems, setEditItems] = useState<LineItem[]>([])
 
   useEffect(() => {
@@ -116,6 +120,7 @@ export function ReceiptDetail({ receiptId, onBack }: { receiptId: number | null;
         setCategoryId(receiptData.category_id)
         setStatus(receiptData.status)
         setTotal(receiptData.total_amount)
+        setNote(receiptData.note || "")
         setEditItems(receiptData.items || [])
       } catch (err) {
         console.error(err)
@@ -136,6 +141,7 @@ export function ReceiptDetail({ receiptId, onBack }: { receiptId: number | null;
         category_id: categoryId,
         status: status,
         total_amount: total,
+        note: note || undefined,
         items: editItems.map((item) => ({
           item_name: item.item_name,
           quantity: item.quantity,
@@ -160,6 +166,7 @@ export function ReceiptDetail({ receiptId, onBack }: { receiptId: number | null;
       setCategoryId(receipt.category_id)
       setStatus(receipt.status)
       setTotal(receipt.total_amount)
+      setNote(receipt.note || "")
       setEditItems(receipt.items || [])
     }
     setEditing(false)
@@ -332,6 +339,21 @@ export function ReceiptDetail({ receiptId, onBack }: { receiptId: number | null;
               ) : (
                 <p className="text-2xl font-bold text-indigo-600">{formatVND(receipt.total_amount)}</p>
               )}
+            </div>
+            <div className="mt-4 pt-4 border-t border-border">
+              <Field label="Ghi chú" icon={FileText}>
+                {editing ? (
+                  <textarea
+                    value={note}
+                    onChange={(e) => setNote(e.target.value)}
+                    placeholder="VD: VAT: 5%, Giảm giá: 10%..."
+                    rows={2}
+                    className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm resize-none"
+                  />
+                ) : (
+                  <p className="text-sm font-medium whitespace-pre-wrap">{receipt.note || "—"}</p>
+                )}
+              </Field>
             </div>
           </SectionCard>
 
