@@ -26,8 +26,7 @@ def receipt_to_response(receipt: Receipt) -> ReceiptResponse:
         supplier_name=receipt.supplier_name,
         receipt_date=receipt.receipt_date,
         total_amount=receipt.total_amount,
-        vat_amount=receipt.vat_amount,
-        discount_amount=receipt.discount_amount,
+        note=receipt.note,
         category_id=receipt.category_id,
         category_name=receipt.category.name if receipt.category else None,
         status=receipt.status,
@@ -74,8 +73,7 @@ async def upload_receipt(
         supplier_name=parsed["supplier_name"],
         receipt_date=parsed["receipt_date"],
         total_amount=parsed["total_amount"],
-        vat_amount=parsed.get("vat_amount", 0.0),
-        discount_amount=parsed.get("discount_amount", 0.0),
+        note=parsed.get("note"),
         status="Chờ duyệt",
     )
     db.add(receipt)
@@ -162,10 +160,8 @@ def update_receipt(
         if not category:
             raise HTTPException(status_code=400, detail="Category not found")
         receipt.category_id = data.category_id
-    if data.vat_amount is not None:
-        receipt.vat_amount = data.vat_amount
-    if data.discount_amount is not None:
-        receipt.discount_amount = data.discount_amount
+    if data.note is not None:
+        receipt.note = data.note
     if data.status is not None:
         receipt.status = data.status
 
@@ -239,8 +235,7 @@ async def batch_upload_receipts(
             supplier_name=parsed["supplier_name"],
             receipt_date=parsed["receipt_date"],
             total_amount=parsed["total_amount"],
-            vat_amount=parsed.get("vat_amount", 0.0),
-            discount_amount=parsed.get("discount_amount", 0.0),
+            note=parsed.get("note"),
             status="Chờ duyệt",
         )
         db.add(receipt)

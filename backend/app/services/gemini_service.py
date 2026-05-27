@@ -44,8 +44,7 @@ Trả về ĐÚNG JSON (không markdown, không ```json```) với cấu trúc:
   "supplier_name": "tên cửa hàng/nhà cung cấp",
   "receipt_date": "dd/mm/yyyy",
   "total_amount": 0,
-  "vat_amount": 0,
-  "discount_amount": 0,
+  "note": "ghi chú thêm: VAT, giảm giá, ...",
   "items": [
     {
       "item_name": "tên sản phẩm bằng tiếng Việt có dấu",
@@ -60,8 +59,7 @@ Quy tắc:
 - supplier_name: Tên cửa hàng/quán/nhà thuốc ở đầu hóa đơn. Giữ nguyên tên gốc.
 - receipt_date: Ngày trên hóa đơn, format dd/mm/yyyy. Null nếu không tìm thấy.
 - total_amount: Tổng tiền cuối cùng phải thanh toán (VND). Số nguyên, không có dấu chấm phân cách.
-- vat_amount: Tiền thuế VAT nếu có trên hóa đơn. 0 nếu không có.
-- discount_amount: Tiền giảm giá/khuyến mãi nếu có. 0 nếu không có.
+- note: Ghi chú thêm về hóa đơn, ví dụ: VAT, giảm giá, phương thức thanh toán, v.v. Null nếu không có.
 - items: Danh sách sản phẩm/món. Mỗi item có tên, số lượng, đơn giá, thành tiền.
 - item_name: PHẢI viết bằng tiếng Việt CÓ DẤU đầy đủ (ví dụ: "Cà phê sữa đá" không phải "Ca phe sua da").
 - Tất cả giá trị tiền là số nguyên (VND), không dấu chấm, không dấu phẩy.
@@ -99,8 +97,7 @@ Trả về ĐÚNG JSON (không markdown, không ```json```) với cấu trúc:
   "supplier_name": "tên cửa hàng/nhà cung cấp",
   "receipt_date": "dd/mm/yyyy",
   "total_amount": 0,
-  "vat_amount": 0,
-  "discount_amount": 0,
+  "note": "ghi chú thêm: VAT, giảm giá, ...",
   "items": [
     {{
       "item_name": "tên sản phẩm bằng tiếng Việt có dấu",
@@ -115,8 +112,7 @@ Quy tắc:
 - supplier_name: Tên cửa hàng/quán/nhà thuốc. Giữ nguyên tên gốc.
 - receipt_date: Format dd/mm/yyyy. Null nếu không tìm thấy.
 - total_amount: Tổng tiền cuối cùng (VND). Số nguyên.
-- vat_amount: Tiền thuế VAT nếu có. 0 nếu không.
-- discount_amount: Tiền giảm giá nếu có. 0 nếu không.
+- note: Ghi chú thêm: VAT, giảm giá, phương thức thanh toán, v.v. Null nếu không có.
 - items: Danh sách sản phẩm. Mỗi item có tên, số lượng, đơn giá, thành tiền.
 - item_name: PHẢI viết bằng tiếng Việt CÓ DẤU đầy đủ.
 - Tất cả giá trị tiền là số nguyên (VND).
@@ -202,8 +198,7 @@ def _parse_json_response(text: str) -> dict | None:
         "supplier_name": data.get("supplier_name"),
         "receipt_date": data.get("receipt_date"),
         "total_amount": _safe_float(data.get("total_amount", 0)),
-        "vat_amount": _safe_float(data.get("vat_amount", 0)),
-        "discount_amount": _safe_float(data.get("discount_amount", 0)),
+        "note": data.get("note"),
         "items": [],
     }
 

@@ -35,6 +35,7 @@ export function DashboardLayout({
   const [isCollapsed, setIsCollapsed] = useState(false)
   const [currentPage, setCurrentPage] = useState(activeItem)
   const [selectedReceiptId, setSelectedReceiptId] = useState<number | null>(null)
+  const [detailSourcePage, setDetailSourcePage] = useState("history")
   const [userName, setUserName] = useState("Người dùng")
   const [userEmail, setUserEmail] = useState("")
 
@@ -60,12 +61,13 @@ export function DashboardLayout({
   }
 
   const handleViewReceipt = (id: number) => {
+    setDetailSourcePage(currentPage)
     setSelectedReceiptId(id)
     setCurrentPage("detail")
   }
 
   const handleBackFromDetail = () => {
-    setCurrentPage("history")
+    setCurrentPage(detailSourcePage)
     setSelectedReceiptId(null)
   }
 
@@ -87,7 +89,7 @@ export function DashboardLayout({
   return (
     <div className="min-h-screen bg-background">
       <Sidebar
-        activeItem={currentPage === "detail" ? "history" : currentPage}
+        activeItem={currentPage === "detail" ? detailSourcePage : currentPage}
         onNavigate={handleNavigate}
         isCollapsed={isCollapsed}
         onToggle={() => setIsCollapsed(!isCollapsed)}
